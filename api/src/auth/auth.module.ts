@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { verifyToken } from '@clerk/backend';
 import { ClerkGuard, TOKEN_VERIFIER, TokenVerifier } from './clerk.guard';
 
@@ -12,8 +13,9 @@ const clerkVerifier: TokenVerifier = {
     { provide: TOKEN_VERIFIER, useValue: clerkVerifier },
     {
       provide: ClerkGuard,
-      useFactory: (v: TokenVerifier) => new ClerkGuard(v),
-      inject: [TOKEN_VERIFIER],
+      useFactory: (v: TokenVerifier, reflector: Reflector) =>
+        new ClerkGuard(v, reflector),
+      inject: [TOKEN_VERIFIER, Reflector],
     },
   ],
   exports: [ClerkGuard],

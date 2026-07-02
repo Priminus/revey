@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { ClerkGuard } from './clerk.guard';
 
 function ctxWithHeader(header?: string): ExecutionContext {
@@ -8,13 +9,17 @@ function ctxWithHeader(header?: string): ExecutionContext {
   };
   return {
     switchToHttp: () => ({ getRequest: () => request }),
+    getHandler: () => undefined,
+    getClass: () => undefined,
   } as unknown as ExecutionContext;
 }
+
+const reflector = { getAllAndOverride: jest.fn().mockReturnValue(false) } as unknown as Reflector;
 
 describe('ClerkGuard', () => {
   it('rejects a request with no bearer token', async () => {
     const verifier = { verify: jest.fn() };
-    const guard = new ClerkGuard(verifier);
+    const guard = new ClerkGuard(verifier, reflector);
     await expect(guard.canActivate(ctxWithHeader())).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
@@ -28,7 +33,7 @@ describe('ClerkGuard', () => {
         org_role: 'admin',
       }),
     };
-    const guard = new ClerkGuard(verifier);
+    const guard = new ClerkGuard(verifier, reflector);
     const ctx = ctxWithHeader('Bearer good-token');
     const ok = await guard.canActivate(ctx);
     expect(ok).toBe(true);
@@ -47,7 +52,7 @@ describe('ClerkGuard', () => {
         o: { id: 'org_2', rol: 'admin' },
       }),
     };
-    const guard = new ClerkGuard(verifier);
+    const guard = new ClerkGuard(verifier, reflector);
     const ctx = ctxWithHeader('Bearer good-token');
     const ok = await guard.canActivate(ctx);
     expect(ok).toBe(true);
