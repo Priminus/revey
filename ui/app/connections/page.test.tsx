@@ -5,11 +5,23 @@ jest.mock('@clerk/nextjs', () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SignedOut: () => null,
   RedirectToSignIn: () => null,
+  useAuth: () => ({ getToken: async () => 'tok' }),
 }));
 
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+beforeEach(() => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ connected: false }),
+  }) as unknown as typeof fetch;
+});
+
 describe('ConnectionsPage', () => {
-  it('renders a Connect Xero action', () => {
+  it('renders a Connect Xero action', async () => {
     render(<ConnectionsPage />);
-    expect(screen.getByText(/connect xero/i)).toBeInTheDocument();
+    expect(await screen.findByText(/connect xero/i)).toBeInTheDocument();
   });
 });

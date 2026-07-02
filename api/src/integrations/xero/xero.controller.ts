@@ -1,8 +1,10 @@
-import { Controller, ForbiddenException, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { XeroOAuthService } from './xero-oauth.service';
 import { XeroConnectionService } from './xero-connection.service';
 import { TenantContextService } from '../../tenancy/tenant-context.service';
+import { EncryptionService } from '../../crypto/encryption.service';
+import { Public } from '../../health/health.public.decorator';
 
 @Controller('integrations/xero')
 export class XeroController {
@@ -10,28 +12,42 @@ export class XeroController {
     private readonly oauth: XeroOAuthService,
     private readonly connections: XeroConnectionService,
     private readonly tenant: TenantContextService,
+    private readonly encryption: EncryptionService,
   ) {}
 
   @Get('connect')
-  connect(@Res() res: Response): void {
-    const state = Buffer.from(this.tenant.clientId).toString('base64url');
-    res.redirect(this.oauth.buildAuthorizeUrl(state));
+  connect(): { authorizeUrl: string } {
+    const state = this.encryption.encrypt(this.tenant.clientId);
+    return { authorizeUrl: this.oauth.buildAuthorizeUrl(state) };
   }
 
+  @Public()
   @Get('callback')
   async callback(
-    @Query('code') code: string,
-    @Query('state') state: string,
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') error: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const clientId = Buffer.from(state, 'base64url').toString('utf8');
-    if (clientId !== this.tenant.clientId) {
-      throw new ForbiddenException('State does not match current tenant');
+    const uiUrl = process.env.UI_URL ?? 'http://localhost:3000';
+    if (error || !code || !state) {
+      res.redirect(`${uiUrl}/connections?xero=error`);
+      return;
+    }
+    let clientId: string;
+    try {
+      clientId = this.encryption.decrypt(state);
+    } catch {
+      res.redirect(`${uiUrl}/connections?xero=error`);
+      return;
     }
     const tokens = await this.oauth.exchangeCode(code);
     const orgs = await this.oauth.getConnections(tokens.accessToken);
+    if (orgs.length === 0) {
+      res.redirect(`${uiUrl}/connections?xero=error`);
+      return;
+    }
     await this.connections.saveConnection(clientId, orgs[0].tenantId, tokens);
-    const uiUrl = process.env.UI_URL ?? 'http://localhost:3000';
     res.redirect(`${uiUrl}/connections?xero=connected`);
   }
 
