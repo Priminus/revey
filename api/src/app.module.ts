@@ -7,9 +7,10 @@ import { ClerkGuard } from './auth/clerk.guard';
 import { TenantModule } from './tenancy/tenant.module';
 import { TenantInterceptor } from './tenancy/tenant.interceptor';
 import { CryptoModule } from './crypto/crypto.module';
+import { XeroModule } from './integrations/xero/xero.module';
 
 @Module({
-  imports: [HealthModule, PrismaModule, AuthModule, TenantModule, CryptoModule],
+  imports: [HealthModule, PrismaModule, AuthModule, TenantModule, CryptoModule, XeroModule],
   providers: [
     { provide: APP_GUARD, useExisting: ClerkGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
