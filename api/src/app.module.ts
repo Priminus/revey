@@ -6,9 +6,10 @@ import { AuthModule } from './auth/auth.module';
 import { ClerkGuard } from './auth/clerk.guard';
 import { TenantModule } from './tenancy/tenant.module';
 import { TenantInterceptor } from './tenancy/tenant.interceptor';
+import { CryptoModule } from './crypto/crypto.module';
 
 @Module({
-  imports: [HealthModule, PrismaModule, AuthModule, TenantModule],
+  imports: [HealthModule, PrismaModule, AuthModule, TenantModule, CryptoModule],
   providers: [
     { provide: APP_GUARD, useExisting: ClerkGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
