@@ -23,7 +23,7 @@ If not specified in goal, use Composio design system. Run "npx getdesign@latest 
 **CREATING APPLICATION GUIDELINES**
 Use flyctl to create applications & secrets.
 Use supabase for data. Use prisma for migrations.
-Use NestJS and NextJS. Use Clerk for auth.
+Use NestJS and NextJS. Use Clerk for auth. Do not use Clerk Organizations.
 GitHub project is setup. Push to "master" branch.
 gcloud is available to you.
 Use GPT API key. Use gpt-image-2 for image generation. Since GPT won't generate real people, in your POST request please use a real picture of said person as input if required.

@@ -9,9 +9,9 @@ datasource db {
 }
 
 model Client {
-  id         String   @id @default(uuid())
-  name       String
-  clerkOrgId String   @unique @map("clerk_org_id")
+  id          String   @id @default(uuid())
+  name        String
+  clerkUserId String   @unique @map("clerk_user_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   debtors    Debtor[]

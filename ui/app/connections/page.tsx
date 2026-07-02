@@ -35,17 +35,35 @@ function XeroStatusBanner(): ReactElement | null {
 function XeroConnectionCard(): ReactElement {
   const { getToken } = useAuth();
   const [status, setStatus] = useState<XeroStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function loadStatus(): Promise<void> {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/integrations/xero/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = (await res.json()) as XeroStatus;
-      if (!cancelled) {
-        setStatus(data);
+      try {
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/integrations/xero/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          if (!cancelled) {
+            setError(
+              res.status === 403
+                ? 'Your account is not linked to a Revey client yet.'
+                : `Could not load Xero status (HTTP ${res.status}).`,
+            );
+          }
+          return;
+        }
+        const data = (await res.json()) as XeroStatus;
+        if (!cancelled) {
+          setStatus(data);
+          setError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setError('Could not reach the Revey API.');
+        }
       }
     }
     void loadStatus();
@@ -55,12 +73,29 @@ function XeroConnectionCard(): ReactElement {
   }, [getToken]);
 
   const handleConnect = async (): Promise<void> => {
-    const token = await getToken();
-    const res = await fetch(`${API_URL}/integrations/xero/connect`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const { authorizeUrl } = (await res.json()) as { authorizeUrl: string };
-    window.location.href = authorizeUrl;
+    setError(null);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/integrations/xero/connect`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setError(
+          res.status === 403
+            ? 'Your account is not linked to a Revey client yet.'
+            : `Could not start the Xero connection (HTTP ${res.status}).`,
+        );
+        return;
+      }
+      const { authorizeUrl } = (await res.json()) as { authorizeUrl?: string };
+      if (!authorizeUrl) {
+        setError('The server did not return a Xero authorization URL.');
+        return;
+      }
+      window.location.href = authorizeUrl;
+    } catch {
+      setError('Could not reach the Revey API.');
+    }
   };
 
   return (
@@ -73,6 +108,7 @@ function XeroConnectionCard(): ReactElement {
             Connected to Xero (org: {status.xeroTenantId})
           </p>
         )}
+        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
       </div>
       {!status?.connected && (
         <button

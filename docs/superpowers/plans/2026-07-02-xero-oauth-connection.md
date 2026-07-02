@@ -1,5 +1,14 @@
 # Xero OAuth Connection Implementation Plan (Plan 2)
 
+> ## ⛔ TENANCY IS PER-USER, NOT CLERK ORGANIZATIONS
+> Where this plan says the tenant interceptor "resolves `client_id` from the Clerk org"
+> or references `clerkOrgId`/`org_id`, that is **historical**. As of migration
+> `user_based_tenancy` (2026-07-02), `TenantService.resolveClientId` maps `auth.userId`
+> (the Clerk **user**) → `client` via `clients.clerk_user_id`. A user signs up, maps to
+> one client, and connects their own **Xero org** via OAuth (Xero org = data source, not
+> auth tenant). **Do NOT reintroduce Clerk Organizations.** See the ⛔ banner in the design
+> spec.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let a Revey client connect their Xero organisation via OAuth 2.0, storing encrypted per-client tokens that auto-refresh, with every Revey API route tenant-scoped by the Clerk-org → `client_id` mapping.

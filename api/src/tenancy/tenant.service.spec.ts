@@ -10,20 +10,23 @@ describe('TenantService', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  it('resolves clientId from the clerk org', async () => {
+  it('resolves clientId from the clerk user', async () => {
     prisma.client.findUnique.mockResolvedValue({ id: 'client_a' });
     const id = await service.resolveClientId({
-      userId: 'u',
-      clerkOrgId: 'org_a',
-      role: 'admin',
+      userId: 'user_a',
+      clerkOrgId: null,
+      role: null,
     });
     expect(id).toBe('client_a');
+    expect(prisma.client.findUnique).toHaveBeenCalledWith({
+      where: { clerkUserId: 'user_a' },
+    });
   });
 
-  it('forbids when the org maps to no client', async () => {
+  it('forbids when the user maps to no client', async () => {
     prisma.client.findUnique.mockResolvedValue(null);
     await expect(
-      service.resolveClientId({ userId: 'u', clerkOrgId: 'org_x', role: null }),
+      service.resolveClientId({ userId: 'user_x', clerkOrgId: null, role: null }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 

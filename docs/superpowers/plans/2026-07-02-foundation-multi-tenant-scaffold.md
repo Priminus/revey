@@ -1,5 +1,14 @@
 # Foundation & Multi-Tenant Scaffold Implementation Plan
 
+> ## ⛔ SUPERSEDED IN PART — TENANCY IS PER-USER, NOT CLERK ORGANIZATIONS
+> This plan was originally executed with **Clerk Organizations as the tenant**. That was
+> **reversed** on 2026-07-02 (migration `user_based_tenancy`). Tenancy is now **per Clerk
+> user**: `clients.clerk_user_id` maps one Clerk user → one `client`; `TenantService`
+> resolves `client_id` from `auth.userId`. **Ignore every `clerkOrgId` / `clerk_org_id` /
+> `org_id` / `OrganizationSwitcher` / "Enable Organizations" reference below** — they are
+> historical. **Do NOT reintroduce Clerk Organizations.** See the ⛔ banner in the design
+> spec for the rationale.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Stand up the Revey monorepo with a NestJS API and Next.js console, backed by Supabase Postgres, authenticated by Clerk with Organizations as tenants, and enforce per-client data isolation at both the application and database layers — deployable to Fly.io (`sin`).
