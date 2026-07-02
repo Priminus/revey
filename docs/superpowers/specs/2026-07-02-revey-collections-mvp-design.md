@@ -58,7 +58,8 @@ same UI later opened for customer self-serve.
 | DB + storage | **Supabase** (Postgres + pgvector + storage + realtime) | Managed Postgres with SG region; RLS for DB-enforced tenant isolation; realtime for live queue/dashboards. |
 | Memory | **Mem0 (OSS, self-hosted) on Supabase pgvector** | Node SDK; clean `app_id`/`user_id` tenancy; all data stays in Supabase (residency); no extra datastore. |
 | Deploy | **Fly.io** (`sin` region) | API + UI as Fly apps; SG residency story for CFO/IT blockers. |
-| Model | **Claude** (Anthropic SDK) | Scoring, drafting, reply classification. |
+| Model | **OpenAI (GPT)** via a thin `LlmService` interface | Scoring, drafting, reply classification. Only an OpenAI key is provisioned; interface keeps Claude swappable if an Anthropic key is added. |
+| Email | **Postmark** | Branded/threaded sending + inbound reply webhook. |
 | ORM / migrations | **Prisma** | Schema + migrations (house convention); tenant scoping enforced in service layer + RLS. |
 
 ### Assumptions to validate with first partners
@@ -179,8 +180,10 @@ Modeled as one durable, resumable graph per debtor collection cycle:
   audited.
 - **Memory isolation:** Mem0 `app_id = client_id`, `user_id = debtor_id`,
   `run_id = collection case`. Per-client and per-debtor isolation by construction.
-- **Residency:** Supabase (SG region) + Fly.io (`sin`) keep all client AR data and memory
-  in-region — the concrete answer to CFO/IT/Legal blocker concerns in the ICP.
+- **Residency:** target is Supabase (SG) + Fly.io (`sin`) to keep client AR data and
+  memory in-region — the answer to CFO/IT/Legal blockers in the ICP. **Current caveat:**
+  the provisioned Supabase project is in Tokyo (`ap-northeast-1`); still APAC but not SG.
+  Revisit region before onboarding design partners with strict SG-residency requirements.
 
 ---
 
@@ -238,8 +241,7 @@ Modeled as one durable, resumable graph per debtor collection cycle:
 
 ## 11. Open questions
 
-- Email provider choice (branded sending + threaded replies + inbound webhooks) — to be
-  decided in the implementation plan (candidates: Postmark, Resend, SendGrid).
+- ~~Email provider~~ — **resolved: Postmark** (token provisioned).
 - Exact Xero sync cadence and rate-limit handling — validate against Xero API limits.
 - DSO calculation method for before/after (baseline window, formula) — confirm with the
   first partner's finance champion.

@@ -160,8 +160,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // pgbouncer pooler (6543) for runtime queries
+  directUrl = env("DIRECT_URL")     // direct connection (5432) for migrations
 }
 
 model Client {
@@ -179,13 +180,20 @@ model Client {
 
 `api/.env.example`:
 ```bash
-DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?schema=public"
+DATABASE_URL="postgresql://...pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://...pooler.supabase.com:5432/postgres"
 PORT=3001
 CLERK_SECRET_KEY="sk_test_..."
-CLERK_PUBLISHABLE_KEY="pk_test_..."
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
 ```
 
-Create a Supabase project in region **Singapore (`ap-southeast-1`)**, copy its connection string into `api/.env` as `DATABASE_URL`.
+**Use the existing Supabase project** whose credentials are already in the repo-root
+`.env` (project `ap-northeast-1` / Tokyo — *do not tear it down; tables may be
+truncated/dropped*). The `api/` process reads these via the root `.env`; symlink or copy
+the relevant vars into `api/.env`. `DATABASE_URL` is the pgbouncer pooler (runtime);
+`DIRECT_URL` is the direct connection Prisma uses for migrations. **Region caveat:** this
+is Tokyo, not Singapore — acceptable for the build; flagged in the spec to revisit for
+SG-residency design partners.
 
 - [ ] **Step 4: Create the migration**
 
