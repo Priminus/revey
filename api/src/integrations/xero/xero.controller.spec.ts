@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { XeroController } from './xero.controller';
 import { XeroOAuthService } from './xero-oauth.service';
 import { XeroConnectionService } from './xero-connection.service';
-import { TenantContextService } from '../../tenancy/tenant-context.service';
 import { EncryptionService } from '../../crypto/encryption.service';
 
 describe('XeroController', () => {
@@ -10,7 +9,6 @@ describe('XeroController', () => {
   let oauth: jest.Mocked<Pick<XeroOAuthService, 'buildAuthorizeUrl' | 'exchangeCode' | 'getConnections'>>;
   let connections: jest.Mocked<Pick<XeroConnectionService, 'saveConnection' | 'getStatus'>>;
   let encryption: jest.Mocked<Pick<EncryptionService, 'encrypt' | 'decrypt'>>;
-  let tenant: { clientId: string };
   let res: { redirect: jest.Mock };
 
   beforeEach(async () => {
@@ -27,7 +25,6 @@ describe('XeroController', () => {
       encrypt: jest.fn().mockReturnValue('enc-state'),
       decrypt: jest.fn().mockReturnValue('client-123'),
     };
-    tenant = { clientId: 'client-123' };
     res = { redirect: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -35,7 +32,6 @@ describe('XeroController', () => {
       providers: [
         { provide: XeroOAuthService, useValue: oauth },
         { provide: XeroConnectionService, useValue: connections },
-        { provide: TenantContextService, useValue: tenant },
         { provide: EncryptionService, useValue: encryption },
       ],
     }).compile();
@@ -45,7 +41,7 @@ describe('XeroController', () => {
 
   describe('connect', () => {
     it('encrypts the tenant clientId into state and returns the authorize URL', () => {
-      const result = controller.connect();
+      const result = controller.connect('client-123');
 
       expect(encryption.encrypt).toHaveBeenCalledWith('client-123');
       expect(oauth.buildAuthorizeUrl).toHaveBeenCalledWith('enc-state');
@@ -122,7 +118,7 @@ describe('XeroController', () => {
     it('returns the connection status for the current tenant', async () => {
       connections.getStatus.mockResolvedValue({ connected: true, xeroTenantId: 'xero-tenant-1' });
 
-      const result = await controller.status();
+      const result = await controller.status('client-123');
 
       expect(connections.getStatus).toHaveBeenCalledWith('client-123');
       expect(result).toEqual({ connected: true, xeroTenantId: 'xero-tenant-1' });

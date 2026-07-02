@@ -2,7 +2,7 @@ import { Controller, Get, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { XeroOAuthService } from './xero-oauth.service';
 import { XeroConnectionService } from './xero-connection.service';
-import { TenantContextService } from '../../tenancy/tenant-context.service';
+import { ClientId } from '../../tenancy/client-id.decorator';
 import { EncryptionService } from '../../crypto/encryption.service';
 import { Public } from '../../health/health.public.decorator';
 
@@ -11,13 +11,12 @@ export class XeroController {
   constructor(
     private readonly oauth: XeroOAuthService,
     private readonly connections: XeroConnectionService,
-    private readonly tenant: TenantContextService,
     private readonly encryption: EncryptionService,
   ) {}
 
   @Get('connect')
-  connect(): { authorizeUrl: string } {
-    const state = this.encryption.encrypt(this.tenant.clientId);
+  connect(@ClientId() clientId: string): { authorizeUrl: string } {
+    const state = this.encryption.encrypt(clientId);
     return { authorizeUrl: this.oauth.buildAuthorizeUrl(state) };
   }
 
@@ -52,7 +51,9 @@ export class XeroController {
   }
 
   @Get('status')
-  status(): Promise<{ connected: boolean; xeroTenantId?: string }> {
-    return this.connections.getStatus(this.tenant.clientId);
+  status(
+    @ClientId() clientId: string,
+  ): Promise<{ connected: boolean; xeroTenantId?: string }> {
+    return this.connections.getStatus(clientId);
   }
 }

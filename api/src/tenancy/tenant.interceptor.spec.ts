@@ -2,25 +2,40 @@ import { lastValueFrom, of } from 'rxjs';
 import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { TenantInterceptor } from './tenant.interceptor';
 
-function ctx(auth: unknown): ExecutionContext {
+function ctx(request: Record<string, unknown>): ExecutionContext {
   return {
-    switchToHttp: () => ({ getRequest: () => ({ auth }) }),
+    switchToHttp: () => ({ getRequest: () => request }),
   } as unknown as ExecutionContext;
 }
 
 describe('TenantInterceptor', () => {
-  it('resolves and stores client_id from request.auth', async () => {
-    const tenantService = { resolveClientId: jest.fn().mockResolvedValue('client_a') };
-    const tenantContext = { set: jest.fn(), get clientId() { return 'client_a'; } };
-    const interceptor = new TenantInterceptor(
-      tenantService as never,
-      tenantContext as never,
+  const next: CallHandler = { handle: () => of('ok') };
+
+  it('resolves client_id from request.auth and attaches it to the request', async () => {
+    const tenantService = {
+      resolveClientId: jest.fn().mockResolvedValue('client_a'),
+    };
+    const interceptor = new TenantInterceptor(tenantService as never);
+    const request: Record<string, unknown> = {
+      auth: { userId: 'user_a', clerkOrgId: null, role: null },
+    };
+    const result = await lastValueFrom(
+      await interceptor.intercept(ctx(request), next),
     );
-    const next: CallHandler = { handle: () => of('ok') };
-    const auth = { userId: 'u', clerkOrgId: 'org_a', role: 'admin' };
-    const result = await lastValueFrom(await interceptor.intercept(ctx(auth), next));
-    expect(tenantService.resolveClientId).toHaveBeenCalledWith(auth);
-    expect(tenantContext.set).toHaveBeenCalledWith('client_a');
+    expect(tenantService.resolveClientId).toHaveBeenCalledWith(request.auth);
+    expect(request.clientId).toBe('client_a');
+    expect(result).toBe('ok');
+  });
+
+  it('passes through when there is no auth (public route)', async () => {
+    const tenantService = { resolveClientId: jest.fn() };
+    const interceptor = new TenantInterceptor(tenantService as never);
+    const request: Record<string, unknown> = {};
+    const result = await lastValueFrom(
+      await interceptor.intercept(ctx(request), next),
+    );
+    expect(tenantService.resolveClientId).not.toHaveBeenCalled();
+    expect(request.clientId).toBeUndefined();
     expect(result).toBe('ok');
   });
 });
