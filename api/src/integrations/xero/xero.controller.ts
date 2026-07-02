@@ -46,7 +46,14 @@ export class XeroController {
       res.redirect(`${uiUrl}/connections?xero=error`);
       return;
     }
-    await this.connections.saveConnection(clientId, orgs[0].tenantId, tokens);
+    // A Xero login may have several connected orgs; `orgs[0]` is arbitrary. The
+    // org the user just authorized has the most recent updatedDateUtc — pick it.
+    const org = [...orgs].sort(
+      (a, b) =>
+        new Date(b.updatedDateUtc).getTime() -
+        new Date(a.updatedDateUtc).getTime(),
+    )[0];
+    await this.connections.saveConnection(clientId, org.tenantId, tokens);
     res.redirect(`${uiUrl}/connections?xero=connected`);
   }
 

@@ -12,6 +12,12 @@ export interface XeroTokenSet {
   expiresInSec: number;
 }
 
+export interface XeroConnection {
+  tenantId: string;
+  tenantName: string;
+  updatedDateUtc: string;
+}
+
 const AUTHORIZE_URL = 'https://login.xero.com/identity/connect/authorize';
 const TOKEN_URL = 'https://identity.xero.com/connect/token';
 const CONNECTIONS_URL = 'https://api.xero.com/connections';
@@ -20,6 +26,10 @@ const CONNECTIONS_URL = 'https://api.xero.com/connections';
 // enabled on modern Xero apps — use the granular ones (invoices, payments,
 // aged-receivables report) instead. openid/profile/email/offline_access are
 // standard OIDC scopes and do not appear in the app's scope config list.
+// Read-only, least-privilege scopes for AR collections. `accounting.transactions`
+// and `accounting.reports.read` are the deprecated broad scopes not enabled on
+// modern Xero apps — use the granular read scopes instead. openid/profile/email/
+// offline_access are standard OIDC scopes.
 const SCOPES =
   'openid profile email accounting.contacts.read accounting.invoices.read accounting.payments.read accounting.reports.aged.read offline_access';
 
@@ -99,16 +109,18 @@ export class XeroOAuthService {
     );
   }
 
-  async getConnections(
-    accessToken: string,
-  ): Promise<Array<{ tenantId: string; tenantName: string }>> {
+  async getConnections(accessToken: string): Promise<XeroConnection[]> {
     const res = await fetch(CONNECTIONS_URL, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     });
     if (!res.ok) {
       throw new Error(`Xero connections fetch failed: ${res.status}`);
     }
-    const json = (await res.json()) as Array<{ tenantId: string; tenantName: string }>;
-    return json.map((c) => ({ tenantId: c.tenantId, tenantName: c.tenantName }));
+    const json = (await res.json()) as XeroConnection[];
+    return json.map((c) => ({
+      tenantId: c.tenantId,
+      tenantName: c.tenantName,
+      updatedDateUtc: c.updatedDateUtc,
+    }));
   }
 }

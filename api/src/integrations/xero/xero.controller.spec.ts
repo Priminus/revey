@@ -83,7 +83,7 @@ describe('XeroController', () => {
         expiresInSec: 1800,
       });
       oauth.getConnections.mockResolvedValue([
-        { tenantId: 'xero-tenant-1', tenantName: 'Acme' },
+        { tenantId: 'xero-tenant-1', tenantName: 'Acme', updatedDateUtc: '2026-01-01T00:00:00Z' },
       ]);
 
       await controller.callback('a-code', 'enc-state', undefined, res as never);
@@ -97,6 +97,27 @@ describe('XeroController', () => {
         { accessToken: 'at', refreshToken: 'rt', expiresInSec: 1800 },
       );
       expect(res.redirect).toHaveBeenCalledWith('http://localhost:3000/connections?xero=connected');
+    });
+
+    it('saves the most recently authorized org, not orgs[0]', async () => {
+      oauth.exchangeCode.mockResolvedValue({
+        accessToken: 'at',
+        refreshToken: 'rt',
+        expiresInSec: 1800,
+      });
+      // orgs[0] is an older org; the freshly-authorized one has a newer updatedDateUtc.
+      oauth.getConnections.mockResolvedValue([
+        { tenantId: 'old-org', tenantName: 'Old', updatedDateUtc: '2026-01-01T00:00:00Z' },
+        { tenantId: 'just-authorized', tenantName: 'Fresh', updatedDateUtc: '2026-07-03T00:00:00Z' },
+      ]);
+
+      await controller.callback('a-code', 'enc-state', undefined, res as never);
+
+      expect(connections.saveConnection).toHaveBeenCalledWith(
+        'client-123',
+        'just-authorized',
+        expect.anything(),
+      );
     });
 
     it('redirects to an error page when Xero returns no orgs', async () => {

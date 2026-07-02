@@ -52,4 +52,17 @@ describe('XeroOAuthService', () => {
     }) as never;
     await expect(svc.exchangeCode('bad')).rejects.toThrow(/xero token exchange failed/i);
   });
+
+  it('maps connections including updatedDateUtc', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { tenantId: 't1', tenantName: 'Org One', updatedDateUtc: '2026-01-01T00:00:00Z', extra: 'ignored' },
+      ],
+    }) as never;
+    const conns = await svc.getConnections('at');
+    expect(conns).toEqual([
+      { tenantId: 't1', tenantName: 'Org One', updatedDateUtc: '2026-01-01T00:00:00Z' },
+    ]);
+  });
 });
