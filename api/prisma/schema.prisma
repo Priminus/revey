@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // pgbouncer pooler (6543) for runtime queries
+  directUrl = env("DIRECT_URL")     // direct connection (5432) for migrations
+}
+
+model Client {
+  id         String   @id @default(uuid())
+  name       String
+  clerkOrgId String   @unique @map("clerk_org_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("clients")
+}
