@@ -15,8 +15,13 @@ export interface XeroTokenSet {
 const AUTHORIZE_URL = 'https://login.xero.com/identity/connect/authorize';
 const TOKEN_URL = 'https://identity.xero.com/connect/token';
 const CONNECTIONS_URL = 'https://api.xero.com/connections';
+// Xero granular read scopes for AR collections. `accounting.transactions.read`
+// and `accounting.reports.read` are the deprecated broad scopes and are NOT
+// enabled on modern Xero apps — use the granular ones (invoices, payments,
+// aged-receivables report) instead. openid/profile/email/offline_access are
+// standard OIDC scopes and do not appear in the app's scope config list.
 const SCOPES =
-  'openid profile email accounting.transactions.read accounting.contacts.read accounting.reports.read offline_access';
+  'openid profile email accounting.contacts.read accounting.invoices.read accounting.payments.read accounting.reports.aged.read offline_access';
 
 @Injectable()
 export class XeroOAuthService {
@@ -31,13 +36,19 @@ export class XeroOAuthService {
   ) {}
 
   buildAuthorizeUrl(state: string): string {
-    const url = new URL(AUTHORIZE_URL);
-    url.searchParams.set('response_type', 'code');
-    url.searchParams.set('client_id', this.config.clientId);
-    url.searchParams.set('redirect_uri', this.config.redirectUri);
-    url.searchParams.set('scope', SCOPES);
-    url.searchParams.set('state', state);
-    return url.toString();
+    // Build the query manually with encodeURIComponent so scope separators are
+    // `%20`, not `+`. Xero's authorize endpoint percent-decodes strictly and
+    // rejects `+`-separated scopes as a single invalid scope (invalid_scope).
+    const query = [
+      ['response_type', 'code'],
+      ['client_id', this.config.clientId],
+      ['redirect_uri', this.config.redirectUri],
+      ['scope', SCOPES],
+      ['state', state],
+    ]
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&');
+    return `${AUTHORIZE_URL}?${query}`;
   }
 
   private basicAuthHeader(): string {

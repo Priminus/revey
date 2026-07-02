@@ -7,16 +7,25 @@ describe('XeroOAuthService', () => {
     redirectUri: 'http://localhost:3001/api/integrations/xero/callback',
   });
 
-  it('builds an authorize url with state and scopes', () => {
-    const url = new URL(svc.buildAuthorizeUrl('state123'));
+  it('builds an authorize url with state and granular scopes', () => {
+    const raw = svc.buildAuthorizeUrl('state123');
+    const url = new URL(raw);
     expect(url.origin + url.pathname).toBe(
       'https://login.xero.com/identity/connect/authorize',
     );
     expect(url.searchParams.get('client_id')).toBe('cid');
     expect(url.searchParams.get('state')).toBe('state123');
     expect(url.searchParams.get('response_type')).toBe('code');
-    expect(url.searchParams.get('scope')).toContain('accounting.transactions.read');
-    expect(url.searchParams.get('scope')).toContain('offline_access');
+    // Granular Xero scopes (not the deprecated broad accounting.transactions/reports).
+    const scope = url.searchParams.get('scope') ?? '';
+    expect(scope).toContain('accounting.invoices.read');
+    expect(scope).toContain('accounting.contacts.read');
+    expect(scope).toContain('accounting.reports.aged.read');
+    expect(scope).toContain('offline_access');
+    expect(scope).not.toContain('accounting.transactions.read');
+    // Scope separators must be %20, not `+` — Xero rejects `+` as invalid_scope.
+    expect(raw).toContain('scope=openid%20profile%20email');
+    expect(raw).not.toMatch(/scope=[^&]*\+/);
   });
 
   it('exchanges an auth code for tokens', async () => {
