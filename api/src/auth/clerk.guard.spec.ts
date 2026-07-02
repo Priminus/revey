@@ -39,4 +39,23 @@ describe('ClerkGuard', () => {
       role: 'admin',
     });
   });
+
+  it('attaches auth context from a v2 token with a nested o claim', async () => {
+    const verifier = {
+      verify: jest.fn().mockResolvedValue({
+        sub: 'user_2',
+        o: { id: 'org_2', rol: 'admin' },
+      }),
+    };
+    const guard = new ClerkGuard(verifier);
+    const ctx = ctxWithHeader('Bearer good-token');
+    const ok = await guard.canActivate(ctx);
+    expect(ok).toBe(true);
+    const request = ctx.switchToHttp().getRequest();
+    expect(request.auth).toEqual({
+      userId: 'user_2',
+      clerkOrgId: 'org_2',
+      role: 'admin',
+    });
+  });
 });

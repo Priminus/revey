@@ -11,6 +11,7 @@ export interface TokenVerifier {
     sub: string;
     org_id?: string;
     org_role?: string;
+    o?: { id?: string; rol?: string; slg?: string };
   }>;
 }
 
@@ -30,16 +31,23 @@ export class ClerkGuard implements CanActivate {
     if (scheme !== 'Bearer' || !token) {
       throw new UnauthorizedException('Missing bearer token');
     }
-    let claims: { sub: string; org_id?: string; org_role?: string };
+    let claims: {
+      sub: string;
+      org_id?: string;
+      org_role?: string;
+      o?: { id?: string; rol?: string; slg?: string };
+    };
     try {
       claims = await this.verifier.verify(token);
     } catch {
       throw new UnauthorizedException('Invalid token');
     }
+    const clerkOrgId = claims.org_id ?? claims.o?.id ?? null;
+    const role = claims.org_role ?? claims.o?.rol ?? null;
     request.auth = {
       userId: claims.sub,
-      clerkOrgId: claims.org_id ?? null,
-      role: claims.org_role ?? null,
+      clerkOrgId,
+      role,
     };
     return true;
   }

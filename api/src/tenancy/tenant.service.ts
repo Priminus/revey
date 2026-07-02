@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Debtor } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/auth-context';
 
@@ -19,7 +20,7 @@ export class TenantService {
     return client.id;
   }
 
-  async debtorsForClient(clientId: string) {
+  async debtorsForClient(clientId: string): Promise<Debtor[]> {
     return this.prisma.debtor.findMany({ where: { clientId } });
   }
 }

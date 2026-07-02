@@ -18,5 +18,11 @@ fly secrets set -a revey-ui NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=... CLERK_SECRET_K
 
 ```bash
 fly deploy -a revey-api -c api/fly.toml
-fly deploy -a revey-ui -c ui/fly.toml
+fly deploy -a revey-ui -c ui/fly.toml \
+  --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_placeholder \
+  --build-arg NEXT_PUBLIC_API_URL=https://revey-api.fly.dev/api
 ```
+
+Note: `NEXT_PUBLIC_*` values must be passed as `--build-arg`s (not just `fly secrets`), because
+Next.js inlines them into the client bundle at `next build` time, which runs before the
+container has access to runtime secrets.
