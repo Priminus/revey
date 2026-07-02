@@ -869,3 +869,31 @@ git commit -m "chore: add Fly.io deploy configs for api and ui (sin region)"
 **Placeholder scan:** No TBD/TODO. Two conditional notes (RLS per-request connection setting; `flyctl` availability) are explicit deferrals with rationale, not vague placeholders.
 
 **Type consistency:** `AuthContext` (Task 3) is consumed unchanged by `TenantService.resolveClientId` (Task 4). `TOKEN_VERIFIER`/`TokenVerifier` names match between guard and module. `Client.clerkOrgId` (Task 2) is the field `TenantService` queries by (Task 4). `Debtor.clientId` (Task 4) matches the `where: { clientId }` scoping. Consistent.
+
+---
+
+## Carried forward to Plan 2 (from Plan 1 final review)
+
+These were surfaced by the whole-branch review as legitimately Plan-2 scope and must be
+handled before tenant isolation is actually exercised end-to-end:
+
+1. **Wire the guard + tenant interceptor.** `ClerkGuard` is implemented and exported but
+   not yet applied. Plan 2 must register it (e.g. `APP_GUARD`, keeping `/api/health`
+   public) and add a request-scoped interceptor that calls
+   `TenantService.resolveClientId(auth)` and injects `client_id` into request context —
+   otherwise `TenantService` is never invoked and isolation is not enforced on any route.
+2. **Make RLS actually enforce.** Current RLS is inert: the app connects as the
+   table-owning role (owner bypasses RLS without `FORCE ROW LEVEL SECURITY`), nothing
+   executes `set_config('app.current_client_id', …)` per request, and `clients` has no
+   policy. If RLS is to be real defense-in-depth, add a non-owner DB role, `FORCE ROW
+   LEVEL SECURITY`, a per-request `set_config` on a transaction, and a `clients` policy.
+   Otherwise treat RLS as documentation-only and rely on the app-layer guard.
+3. **Integration test** driving `ClerkGuard → interceptor → TenantService` with a
+   realistically-shaped (v2) Clerk token — unit tests currently mock the verifier and
+   never see the real claim shape.
+4. **`ui/fly.toml` has no health check** (the API one does) — add for operational parity.
+
+**Env note (resolved during Plan 1):** the Supabase DB is a fresh empty project in
+`ap-south-1` (Mumbai); Clerk keys were rotated. `DATABASE_URL`/`DIRECT_URL` in `.env`
+point at the pooler (`:6543` runtime, `:5432` migrations). The guard now handles both
+Clerk v1 (`org_id`/`org_role`) and v2 (`o.id`/`o.rol`) org claims.
