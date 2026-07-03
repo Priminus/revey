@@ -8,9 +8,10 @@ import { TenantModule } from './tenancy/tenant.module';
 import { TenantInterceptor } from './tenancy/tenant.interceptor';
 import { CryptoModule } from './crypto/crypto.module';
 import { XeroModule } from './integrations/xero/xero.module';
+import { ArModule } from './ar/ar.module';
 
 @Module({
-  imports: [HealthModule, PrismaModule, AuthModule, TenantModule, CryptoModule, XeroModule],
+  imports: [HealthModule, PrismaModule, AuthModule, TenantModule, CryptoModule, XeroModule, ArModule],
   providers: [
     { provide: APP_GUARD, useExisting: ClerkGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
