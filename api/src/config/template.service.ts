@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type TemplateVars = Record<string, string>;
@@ -8,7 +8,9 @@ function formatCents(cents: number): string {
 }
 
 export function renderTemplate(text: string, vars: TemplateVars): string {
-  return text.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_m, key: string) => vars[key] ?? '');
+  return text.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_m, key: string) =>
+    Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : '',
+  );
 }
 
 export function buildVars(
@@ -59,7 +61,7 @@ export class TemplateService {
     const existing = await this.prisma.emailTemplate.findFirst({
       where: { id, OR: [{ clientId: null }, { clientId }] },
     });
-    if (!existing) throw new ConflictException('Template not found in scope');
+    if (!existing) throw new NotFoundException('Template not found in scope');
     const data: { name?: string; subject?: string; body?: string } = {};
     if (typeof patch.name === 'string') data.name = patch.name;
     if (typeof patch.subject === 'string') data.subject = patch.subject;
@@ -68,12 +70,12 @@ export class TemplateService {
   }
 
   async remove(clientId: string, id: string): Promise<void> {
-    const refs = await this.prisma.reminderStep.count({ where: { templateId: id } });
-    if (refs > 0) throw new ConflictException('Template is used by a reminder step');
     const existing = await this.prisma.emailTemplate.findFirst({
       where: { id, OR: [{ clientId: null }, { clientId }] },
     });
-    if (!existing) throw new ConflictException('Template not found in scope');
+    if (!existing) throw new NotFoundException('Template not found in scope');
+    const refs = await this.prisma.reminderStep.count({ where: { templateId: id } });
+    if (refs > 0) throw new ConflictException('Template is used by a reminder step');
     await this.prisma.emailTemplate.delete({ where: { id } });
   }
 }
