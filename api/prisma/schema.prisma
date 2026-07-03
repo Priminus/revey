@@ -70,6 +70,8 @@ model OutreachDraft {
   scoreValueAtDraft Int?      @map("score_value_at_draft")
   error             String?
   sentAt            DateTime? @map("sent_at")
+  templateId        String?   @map("template_id")
+  stepOffsetDays    Int?      @map("step_offset_days")
   debtor            Debtor    @relation(fields: [debtorId], references: [id], onDelete: Cascade)
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -78,6 +80,44 @@ model OutreachDraft {
   @@index([status])
   @@index([debtorId])
   @@map("outreach_drafts")
+}
+
+model EmailTemplate {
+  id        String         @id @default(uuid())
+  clientId  String?        @map("client_id")
+  name      String
+  subject   String
+  body      String         @db.Text
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  steps     ReminderStep[]
+
+  @@index([clientId])
+  @@map("email_templates")
+}
+
+model ReminderFlow {
+  id        String         @id @default(uuid())
+  clientId  String?        @unique @map("client_id")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  steps     ReminderStep[]
+
+  @@map("reminder_flows")
+}
+
+model ReminderStep {
+  id         String        @id @default(uuid())
+  flowId     String        @map("flow_id")
+  offsetDays Int           @map("offset_days")
+  templateId String        @map("template_id")
+  order      Int
+  flow       ReminderFlow  @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  template   EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@index([flowId])
+  @@map("reminder_steps")
 }
 
 model Invoice {
