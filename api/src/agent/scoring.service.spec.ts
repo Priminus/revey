@@ -44,4 +44,37 @@ describe('ScoringService', () => {
     const result = await svc.scoreDebtor('c1', 'd1', asOf);
     expect(result.scoreValue).toBe(100);
   });
+
+  it('falls back to 50 when scoreValue is not a number', async () => {
+    prisma.debtor.findFirst.mockResolvedValue({ id: 'd1', clientId: 'c1', name: 'Acme' });
+    prisma.invoice.findMany.mockResolvedValue([]);
+    prisma.debtorInteraction.findMany.mockResolvedValue([]);
+    llm.completeJson.mockResolvedValue({
+      scoreValue: 'not a number',
+      scoreBand: 'likely',
+      recommendedAction: 'gentle_reminder',
+      rationale: 'x',
+    });
+    const result = await svc.scoreDebtor('c1', 'd1', asOf);
+    expect(Number.isFinite(result.scoreValue)).toBe(true);
+    expect(result.scoreValue).toBe(50);
+    const update = prisma.debtor.update.mock.calls[0][0];
+    expect(update.data.scoreValue).toBe(50);
+  });
+
+  it('falls back to uncertain when scoreBand is not a valid enum value', async () => {
+    prisma.debtor.findFirst.mockResolvedValue({ id: 'd1', clientId: 'c1', name: 'Acme' });
+    prisma.invoice.findMany.mockResolvedValue([]);
+    prisma.debtorInteraction.findMany.mockResolvedValue([]);
+    llm.completeJson.mockResolvedValue({
+      scoreValue: 80,
+      scoreBand: 'super_likely',
+      recommendedAction: 'gentle_reminder',
+      rationale: 'x',
+    });
+    const result = await svc.scoreDebtor('c1', 'd1', asOf);
+    expect(result.scoreBand).toBe('uncertain');
+    const update = prisma.debtor.update.mock.calls[0][0];
+    expect(update.data.scoreBand).toBe('uncertain');
+  });
 });

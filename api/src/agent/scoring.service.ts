@@ -16,6 +16,8 @@ history — reason about behaviour, not just days overdue. Choose scoreBand from
 likely|uncertain|at_risk and a concise recommendedAction (one of: gentle_reminder,
 firm_followup, final_notice, phone_call, escalate_to_human). Give a one-sentence rationale.`;
 
+const ALLOWED_BANDS = ['likely', 'uncertain', 'at_risk'] as const;
+
 @Injectable()
 export class ScoringService {
   constructor(
@@ -68,12 +70,25 @@ ${history}`;
         '{"scoreValue":number(0-100),"scoreBand":"likely|uncertain|at_risk","recommendedAction":string,"rationale":string}',
     });
 
-    const scoreValue = Math.max(0, Math.min(100, Math.round(raw.scoreValue)));
+    const n = Number(raw.scoreValue);
+    const scoreValue = Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 50;
+
+    const scoreBand = (ALLOWED_BANDS as readonly string[]).includes(raw.scoreBand)
+      ? (raw.scoreBand as ScoreResult['scoreBand'])
+      : 'uncertain';
+
+    const recommendedAction =
+      typeof raw.recommendedAction === 'string' && raw.recommendedAction.trim()
+        ? raw.recommendedAction
+        : 'firm_followup';
+
+    const rationale = typeof raw.rationale === 'string' ? raw.rationale : '';
+
     const result: ScoreResult = {
       scoreValue,
-      scoreBand: raw.scoreBand,
-      recommendedAction: raw.recommendedAction,
-      rationale: raw.rationale,
+      scoreBand,
+      recommendedAction,
+      rationale,
     };
     await this.prisma.debtor.update({
       where: { id: debtorId },
