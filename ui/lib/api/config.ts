@@ -78,7 +78,7 @@ export function useSaveSteps(scope: FlowScope) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (steps: SaveStepsInput[]) =>
-      apiFetch<EffectiveFlow>(`/config/flow/steps?scope=${scope}`, await getToken(), {
+      apiFetch<void>(`/config/flow/steps?scope=${scope}`, await getToken(), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ steps }),
@@ -92,7 +92,7 @@ export function useCustomizeFlow() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () =>
-      apiFetch<EffectiveFlow>('/config/flow/customize', await getToken(), { method: 'POST' }),
+      apiFetch<void>('/config/flow/customize', await getToken(), { method: 'POST' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['config'] }),
   });
 }
