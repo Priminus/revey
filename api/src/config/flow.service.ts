@@ -78,14 +78,19 @@ export class FlowService {
       where: { clientId: null },
       include: { steps: true },
     });
-    const flow = await this.prisma.reminderFlow.create({ data: { clientId } });
-    if (global) {
-      for (const s of global.steps) {
-        await this.prisma.reminderStep.create({
-          data: { flowId: flow.id, offsetDays: s.offsetDays, templateId: s.templateId, order: s.order },
+    await this.prisma.$transaction(async (tx) => {
+      const flow = await tx.reminderFlow.create({ data: { clientId } });
+      if (global && global.steps.length > 0) {
+        await tx.reminderStep.createMany({
+          data: global.steps.map((s) => ({
+            flowId: flow.id,
+            offsetDays: s.offsetDays,
+            templateId: s.templateId,
+            order: s.order,
+          })),
         });
       }
-    }
+    });
   }
 
   async reset(clientId: string): Promise<void> {
@@ -106,11 +111,16 @@ export class FlowService {
         throw new ConflictException('Customize the client flow before editing its steps');
       }
     }
-    await this.prisma.reminderStep.deleteMany({ where: { flowId: flow.id } });
-    for (const s of steps) {
-      await this.prisma.reminderStep.create({
-        data: { flowId: flow.id, offsetDays: s.offsetDays, templateId: s.templateId, order: s.order },
-      });
-    }
+    await this.prisma.$transaction([
+      this.prisma.reminderStep.deleteMany({ where: { flowId: flow.id } }),
+      this.prisma.reminderStep.createMany({
+        data: steps.map((s) => ({
+          flowId: flow.id,
+          offsetDays: s.offsetDays,
+          templateId: s.templateId,
+          order: s.order,
+        })),
+      }),
+    ]);
   }
 }

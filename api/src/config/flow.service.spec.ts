@@ -21,17 +21,30 @@ describe('selectStepFor', () => {
 });
 
 describe('FlowService', () => {
+  const reminderFlow = {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    delete: jest.fn(),
+  };
+  const reminderStep = {
+    create: jest.fn(),
+    createMany: jest.fn(),
+    deleteMany: jest.fn(),
+  };
+  const tx = { reminderFlow, reminderStep };
   const prisma = {
-    reminderFlow: {
-      findUnique: jest.fn(),
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      delete: jest.fn(),
-    },
-    reminderStep: {
-      create: jest.fn(),
-      deleteMany: jest.fn(),
-    },
+    reminderFlow,
+    reminderStep,
+    $transaction: jest.fn(async (arg: unknown) => {
+      if (Array.isArray(arg)) {
+        return Promise.all(arg);
+      }
+      if (typeof arg === 'function') {
+        return (arg as (t: typeof tx) => unknown)(tx);
+      }
+      return undefined;
+    }),
   };
   const svc = new FlowService(prisma as never);
 
@@ -117,13 +130,13 @@ describe('FlowService', () => {
 
       await svc.customize('c1');
 
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(prisma.reminderFlow.create).toHaveBeenCalledWith({ data: { clientId: 'c1' } });
-      expect(prisma.reminderStep.create).toHaveBeenCalledTimes(2);
-      expect(prisma.reminderStep.create).toHaveBeenCalledWith({
-        data: { flowId: 'flow-client', offsetDays: -7, templateId: 't1', order: 1 },
-      });
-      expect(prisma.reminderStep.create).toHaveBeenCalledWith({
-        data: { flowId: 'flow-client', offsetDays: 14, templateId: 't2', order: 2 },
+      expect(prisma.reminderStep.createMany).toHaveBeenCalledWith({
+        data: [
+          { flowId: 'flow-client', offsetDays: -7, templateId: 't1', order: 1 },
+          { flowId: 'flow-client', offsetDays: 14, templateId: 't2', order: 2 },
+        ],
       });
     });
 
@@ -132,8 +145,9 @@ describe('FlowService', () => {
 
       await svc.customize('c1');
 
+      expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(prisma.reminderFlow.create).not.toHaveBeenCalled();
-      expect(prisma.reminderStep.create).not.toHaveBeenCalled();
+      expect(prisma.reminderStep.createMany).not.toHaveBeenCalled();
     });
   });
 
@@ -170,9 +184,10 @@ describe('FlowService', () => {
 
       await svc.replaceSteps('c1', 'client', [{ offsetDays: 1, templateId: 't1', order: 1 }]);
 
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(prisma.reminderStep.deleteMany).toHaveBeenCalledWith({ where: { flowId: 'flow-client' } });
-      expect(prisma.reminderStep.create).toHaveBeenCalledWith({
-        data: { flowId: 'flow-client', offsetDays: 1, templateId: 't1', order: 1 },
+      expect(prisma.reminderStep.createMany).toHaveBeenCalledWith({
+        data: [{ flowId: 'flow-client', offsetDays: 1, templateId: 't1', order: 1 }],
       });
     });
 
