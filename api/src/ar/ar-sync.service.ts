@@ -14,7 +14,7 @@ interface XeroContact {
 interface XeroInvoice {
   InvoiceID: string;
   InvoiceNumber: string;
-  Contact: { ContactID: string };
+  Contact?: { ContactID?: string };
   DateString: string;
   DueDateString: string;
   Total: number;
@@ -69,11 +69,13 @@ export class ArSyncService {
       const invoices = res.Invoices ?? [];
       if (invoices.length === 0) break;
       for (const inv of invoices) {
+        const contactId = inv.Contact?.ContactID;
+        if (!contactId) continue;
         const debtor = await this.prisma.debtor.findUnique({
           where: {
             clientId_xeroContactId: {
               clientId,
-              xeroContactId: inv.Contact?.ContactID,
+              xeroContactId: contactId,
             },
           },
         });
