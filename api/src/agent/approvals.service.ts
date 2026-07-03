@@ -52,7 +52,10 @@ export class ApprovalsService {
     patch: { subject?: string; body?: string },
   ): Promise<void> {
     await this.requirePending(clientId, id);
-    await this.prisma.outreachDraft.update({ where: { id }, data: patch });
+    const data: { subject?: string; body?: string } = {};
+    if (typeof patch.subject === 'string') data.subject = patch.subject;
+    if (typeof patch.body === 'string') data.body = patch.body;
+    await this.prisma.outreachDraft.update({ where: { id }, data });
   }
 
   async reject(clientId: string, id: string): Promise<void> {

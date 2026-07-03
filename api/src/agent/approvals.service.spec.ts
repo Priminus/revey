@@ -187,5 +187,19 @@ describe('ApprovalsService', () => {
       prisma.outreachDraft.findFirst.mockResolvedValue(null);
       await expect(svc.edit('c1', 'missing', { subject: 'x' })).rejects.toThrow(NotFoundException);
     });
+
+    it('whitelists fields, ignoring status/sentAt injected via the patch object', async () => {
+      prisma.outreachDraft.findFirst.mockResolvedValue({ id: 'd1', clientId: 'c1', status: 'pending' });
+
+      await svc.edit('c1', 'draft1', { subject: 'New', status: 'sent', sentAt: new Date() } as never);
+
+      expect(prisma.outreachDraft.update).toHaveBeenCalledWith({
+        where: { id: 'draft1' },
+        data: { subject: 'New' },
+      });
+      const update = prisma.outreachDraft.update.mock.calls[0][0];
+      expect(update.data).not.toHaveProperty('status');
+      expect(update.data).not.toHaveProperty('sentAt');
+    });
   });
 });
