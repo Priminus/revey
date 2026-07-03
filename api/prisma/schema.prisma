@@ -21,19 +21,63 @@ model Client {
 }
 
 model Debtor {
-  id            String    @id @default(uuid())
-  clientId      String    @map("client_id")
-  xeroContactId String    @map("xero_contact_id")
-  name          String
-  email         String?
-  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  invoices      Invoice[]
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                String              @id @default(uuid())
+  clientId          String              @map("client_id")
+  xeroContactId     String              @map("xero_contact_id")
+  name              String
+  email             String?
+  scoreValue        Int?                @map("score_value")
+  scoreBand         String?             @map("score_band")
+  recommendedAction String?             @map("recommended_action")
+  scoreRationale    String?             @map("score_rationale")
+  scoredAt          DateTime?           @map("scored_at")
+  client            Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoices          Invoice[]
+  interactions      DebtorInteraction[]
+  drafts            OutreachDraft[]
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
 
   @@unique([clientId, xeroContactId])
   @@index([clientId])
   @@map("debtors")
+}
+
+model DebtorInteraction {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  debtorId  String   @map("debtor_id")
+  type      String
+  summary   String
+  debtor    Debtor   @relation(fields: [debtorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@index([debtorId])
+  @@map("debtor_interactions")
+}
+
+model OutreachDraft {
+  id                String    @id @default(uuid())
+  clientId          String    @map("client_id")
+  debtorId          String    @map("debtor_id")
+  channel           String    @default("email")
+  subject           String
+  body              String    @db.Text
+  status            String    @default("pending")
+  toEmailIntended   String?   @map("to_email_intended")
+  toEmailActual     String?   @map("to_email_actual")
+  scoreValueAtDraft Int?      @map("score_value_at_draft")
+  error             String?
+  sentAt            DateTime? @map("sent_at")
+  debtor            Debtor    @relation(fields: [debtorId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([clientId])
+  @@index([status])
+  @@index([debtorId])
+  @@map("outreach_drafts")
 }
 
 model Invoice {
