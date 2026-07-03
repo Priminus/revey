@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ReactElement } from 'react';
-import { SignedIn, SignedOut, RedirectToSignIn, OrganizationSwitcher } from '@clerk/nextjs';
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { AgingChart } from '@/components/aging-chart';
 import { KpiTile } from '@/components/kpi-tile';
 import { useArSummary, useDebtors, useSyncAr, formatCents } from '@/lib/api/ar';
@@ -104,7 +104,6 @@ function Dashboard(): ReactElement {
               </Link>
             </nav>
           </div>
-          <OrganizationSwitcher />
         </div>
       </header>
 

@@ -5,7 +5,6 @@ jest.mock('@clerk/nextjs', () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SignedOut: () => null,
   RedirectToSignIn: () => null,
-  OrganizationSwitcher: () => <div>org-switcher</div>,
 }));
 
 jest.mock('../lib/api/ar', () => {

@@ -1,3 +1,4 @@
+import './globals.css';
 import { ClerkProvider } from '@clerk/nextjs';
 import type { ReactNode } from 'react';
 import { Providers } from './providers';
