@@ -21,14 +21,42 @@ model Client {
 }
 
 model Debtor {
-  id        String   @id @default(uuid())
-  clientId  String   @map("client_id")
-  name      String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  clientId      String    @map("client_id")
+  xeroContactId String    @map("xero_contact_id")
+  name          String
+  email         String?
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  @@unique([clientId, xeroContactId])
   @@index([clientId])
   @@map("debtors")
+}
+
+model Invoice {
+  id             String   @id @default(uuid())
+  clientId       String   @map("client_id")
+  debtorId       String   @map("debtor_id")
+  xeroInvoiceId  String   @map("xero_invoice_id")
+  invoiceNumber  String   @map("invoice_number")
+  issueDate      DateTime @map("issue_date")
+  dueDate        DateTime @map("due_date")
+  totalCents     Int      @map("total_cents")
+  amountDueCents Int      @map("amount_due_cents")
+  amountPaidCents Int     @map("amount_paid_cents")
+  status         String
+  currencyCode   String   @map("currency_code")
+  debtor         Debtor   @relation(fields: [debtorId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([clientId, xeroInvoiceId])
+  @@index([clientId])
+  @@index([debtorId])
+  @@map("invoices")
 }
 
 model XeroConnection {
