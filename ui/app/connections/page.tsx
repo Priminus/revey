@@ -138,6 +138,12 @@ export default function ConnectionsPage(): ReactElement {
                   <Link href="/approvals" className="transition-colors duration-200 hover:text-ink">
                     Approvals
                   </Link>
+                  <Link href="/templates" className="transition-colors duration-200 hover:text-ink">
+                    Templates
+                  </Link>
+                  <Link href="/workflow" className="transition-colors duration-200 hover:text-ink">
+                    Workflow
+                  </Link>
                 </nav>
               </div>
             </div>
