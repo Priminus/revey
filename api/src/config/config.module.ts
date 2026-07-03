@@ -13,6 +13,7 @@ export class ConfigModule implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   async onModuleInit(): Promise<void> {
+    if (process.env.NODE_ENV === 'test') return;
     await ensureDefaults(this.prisma);
   }
 }

@@ -87,4 +87,12 @@ describe('ensureDefaults', () => {
       expect(call[0].data.flowId).toBe('flow-existing');
     }
   });
+
+  it('resolves cleanly when a concurrent process wins the race (P2002 unique violation)', async () => {
+    reminderFlow.findFirst.mockResolvedValue(null);
+    reminderStep.count.mockResolvedValue(0);
+    prisma.$transaction.mockRejectedValueOnce({ code: 'P2002' });
+
+    await expect(ensureDefaults(prisma as never)).resolves.toBeUndefined();
+  });
 });

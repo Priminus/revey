@@ -61,29 +61,36 @@ export async function ensureDefaults(prisma: PrismaService): Promise<void> {
     if (existingStepCount > 0) return;
   }
 
-  await prisma.$transaction(async (tx) => {
-    const flow = globalFlow ?? (await tx.reminderFlow.create({ data: { clientId: null } }));
+  try {
+    await prisma.$transaction(async (tx) => {
+      const flow = globalFlow ?? (await tx.reminderFlow.create({ data: { clientId: null } }));
 
-    const sortedTemplates = [...DEFAULT_TEMPLATES].sort((a, b) => a.offsetDays - b.offsetDays);
+      const sortedTemplates = [...DEFAULT_TEMPLATES].sort((a, b) => a.offsetDays - b.offsetDays);
 
-    for (let i = 0; i < sortedTemplates.length; i++) {
-      const def = sortedTemplates[i];
-      const template = await tx.emailTemplate.create({
-        data: {
-          clientId: null,
-          name: def.name,
-          subject: def.subject,
-          body: def.body,
-        },
-      });
-      await tx.reminderStep.create({
-        data: {
-          flowId: flow.id,
-          offsetDays: def.offsetDays,
-          templateId: template.id,
-          order: i,
-        },
-      });
-    }
-  });
+      for (let i = 0; i < sortedTemplates.length; i++) {
+        const def = sortedTemplates[i];
+        const template = await tx.emailTemplate.create({
+          data: {
+            clientId: null,
+            name: def.name,
+            subject: def.subject,
+            body: def.body,
+          },
+        });
+        await tx.reminderStep.create({
+          data: {
+            flowId: flow.id,
+            offsetDays: def.offsetDays,
+            templateId: template.id,
+            order: i,
+          },
+        });
+      }
+    });
+  } catch (err: unknown) {
+    // A concurrent boot may have created the global flow first (unique-violation
+    // on the partial index); treat that as "already seeded" and return cleanly.
+    if ((err as { code?: string })?.code === 'P2002') return;
+    throw err;
+  }
 }
