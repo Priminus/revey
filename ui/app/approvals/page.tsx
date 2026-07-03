@@ -22,7 +22,7 @@ function DraftCard({ draft }: { draft: DraftRow }): ReactElement {
   const rejectMutation = useRejectDraft();
 
   const busy = approveMutation.isPending || rejectMutation.isPending;
-  const redirected = draft.toEmailIntended !== draft.toEmailActual;
+  const isFailed = draft.status === 'failed';
 
   const saveSubject = (): void => {
     if (subject !== draft.subject) editMutation.mutate({ id: draft.id, subject });
@@ -44,18 +44,31 @@ function DraftCard({ draft }: { draft: DraftRow }): ReactElement {
           <p className="mt-1 text-sm text-muted">
             To: {draft.toEmailIntended ?? 'no email on file'}
           </p>
-          {redirected && (
+          {draft.redirectTo && (
             <p className="mt-0.5 text-xs text-info">
-              → redirected to your inbox in test mode
+              → redirected to {draft.redirectTo} in test mode
             </p>
           )}
         </div>
-        {draft.scoreValueAtDraft !== null && (
-          <Badge tone="neutral" className="shrink-0">
-            Score {draft.scoreValueAtDraft} at draft
-          </Badge>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {isFailed && (
+            <Badge tone="danger" className="shrink-0">
+              Failed
+            </Badge>
+          )}
+          {draft.scoreValueAtDraft !== null && (
+            <Badge tone="neutral" className="shrink-0">
+              Score {draft.scoreValueAtDraft} at draft
+            </Badge>
+          )}
+        </div>
       </div>
+
+      {isFailed && draft.error && (
+        <p className="mb-3 rounded-[10px] border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+          {draft.error}
+        </p>
+      )}
 
       <label className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
         Subject
@@ -80,7 +93,7 @@ function DraftCard({ draft }: { draft: DraftRow }): ReactElement {
 
       <div className="mt-4 flex items-center gap-3">
         <Button onClick={() => approveMutation.mutate(draft.id)} disabled={busy}>
-          {approveMutation.isPending ? 'Sending…' : 'Approve & Send'}
+          {approveMutation.isPending ? 'Sending…' : isFailed ? 'Retry & Send' : 'Approve & Send'}
         </Button>
         <Button
           variant="ghost"

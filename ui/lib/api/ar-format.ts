@@ -40,4 +40,5 @@ export interface DraftRow {
   error: string | null;
   sentAt: string | null;
   createdAt: string;
+  redirectTo: string | null;
 }

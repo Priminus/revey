@@ -10,6 +10,10 @@ export class MessagingService {
     private readonly redirect: string = process.env.OUTREACH_REDIRECT_EMAIL ?? '',
   ) {}
 
+  get redirectEmail(): string {
+    return this.redirect;
+  }
+
   async sendEmail(opts: {
     toIntended: string | null;
     subject: string;

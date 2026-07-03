@@ -77,4 +77,29 @@ describe('ScoringService', () => {
     const update = prisma.debtor.update.mock.calls[0][0];
     expect(update.data.scoreBand).toBe('uncertain');
   });
+
+  describe('scoreAllOpen', () => {
+    it('continues past a single debtor failure and reports scored/failed counts', async () => {
+      prisma.debtor.findMany.mockResolvedValue([{ id: 'd1' }, { id: 'd2' }]);
+
+      const spy = jest.spyOn(svc, 'scoreDebtor');
+      spy.mockImplementationOnce(() =>
+        Promise.reject(new Error('llm timeout')),
+      );
+      spy.mockImplementationOnce(() =>
+        Promise.resolve({
+          scoreValue: 60,
+          scoreBand: 'uncertain',
+          recommendedAction: 'firm_followup',
+          rationale: 'x',
+        }),
+      );
+
+      const result = await svc.scoreAllOpen('c1');
+
+      expect(result).toEqual({ scored: 1, failed: 1 });
+      expect(spy).toHaveBeenCalledTimes(2);
+      spy.mockRestore();
+    });
+  });
 });

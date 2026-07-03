@@ -106,7 +106,9 @@ export function useScoreAll() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () =>
-      apiFetch<{ scored: number }>('/agent/score', await getToken(), { method: 'POST' }),
+      apiFetch<{ scored: number; failed: number }>('/agent/score', await getToken(), {
+        method: 'POST',
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ar'] });
       qc.invalidateQueries({ queryKey: ['agent'] });

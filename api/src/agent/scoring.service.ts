@@ -103,14 +103,22 @@ ${history}`;
     return result;
   }
 
-  async scoreAllOpen(clientId: string): Promise<{ scored: number }> {
+  async scoreAllOpen(clientId: string): Promise<{ scored: number; failed: number }> {
     const debtors = await this.prisma.debtor.findMany({
       where: { clientId, invoices: { some: { amountDueCents: { gt: 0 } } } },
       select: { id: true },
     });
+    let scored = 0;
+    let failed = 0;
+    // TODO: bounded concurrency / background job
     for (const d of debtors) {
-      await this.scoreDebtor(clientId, d.id);
+      try {
+        await this.scoreDebtor(clientId, d.id);
+        scored++;
+      } catch {
+        failed++;
+      }
     }
-    return { scored: debtors.length };
+    return { scored, failed };
   }
 }

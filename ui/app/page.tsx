@@ -51,7 +51,10 @@ function ScoreAllButton(): ReactElement {
         {isPending ? 'Scoring…' : 'Score all'}
       </Button>
       {data && (
-        <p className="tnum text-xs text-paid">Scored {data.scored.toLocaleString('en-US')} debtors</p>
+        <p className={`tnum text-xs ${data.failed > 0 ? 'text-danger' : 'text-paid'}`}>
+          Scored {data.scored.toLocaleString('en-US')} debtors
+          {data.failed > 0 ? ` (${data.failed.toLocaleString('en-US')} failed)` : ''}
+        </p>
       )}
       {error && <p className="text-xs text-danger">{(error as Error).message}</p>}
     </div>

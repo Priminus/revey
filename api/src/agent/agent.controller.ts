@@ -13,7 +13,7 @@ export class AgentController {
   ) {}
 
   @Post('score')
-  scoreAll(@ClientId() clientId: string): Promise<{ scored: number }> {
+  scoreAll(@ClientId() clientId: string): Promise<{ scored: number; failed: number }> {
     return this.scoring.scoreAllOpen(clientId);
   }
 
