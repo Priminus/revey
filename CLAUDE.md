@@ -18,7 +18,7 @@ You are not permitted to treat the goal as unreachable, unobtainable, cannot be 
 Make sure it is clear it is a parody, for any brand names replace one letter consistently throughout pages if mentioned.
 
 **DESIGN GUIDELINES**
-If not specified in goal, use Composio design system. Run "npx getdesign@latest add composio" and instruct to use DESIGN.md for styling.
+Use DESIGN.md
 
 **CREATING APPLICATION GUIDELINES**
 Use flyctl to create applications & secrets.
