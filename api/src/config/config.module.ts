@@ -8,6 +8,7 @@ import { ensureDefaults } from './seed-defaults';
 @Module({
   controllers: [ConfigController],
   providers: [TemplateService, FlowService],
+  exports: [TemplateService, FlowService],
 })
 export class ConfigModule implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
