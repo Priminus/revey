@@ -23,6 +23,10 @@ export interface DebtorRow {
   outstandingCents: number;
   worstOverdueDays: number;
   openInvoiceCount: number;
+  scoreValue: number | null;
+  scoreBand: string | null;
+  recommendedAction: string | null;
+  scoreRationale: string | null;
 }
 
 export interface InvoiceRow {
@@ -37,11 +41,23 @@ export interface InvoiceRow {
   bucket: AgingBucket;
 }
 
+export interface InteractionRow {
+  id: string;
+  type: string;
+  summary: string;
+  createdAt: Date;
+}
+
 export interface DebtorDetail {
   id: string;
   name: string;
   email: string | null;
   invoices: InvoiceRow[];
+  scoreValue: number | null;
+  scoreBand: string | null;
+  recommendedAction: string | null;
+  scoreRationale: string | null;
+  interactions: InteractionRow[];
 }
 
 @Injectable()
@@ -96,6 +112,10 @@ export class ArService {
           outstandingCents,
           worstOverdueDays: open.length ? worstOverdueDays : 0,
           openInvoiceCount: open.length,
+          scoreValue: d.scoreValue,
+          scoreBand: d.scoreBand,
+          recommendedAction: d.recommendedAction,
+          scoreRationale: d.scoreRationale,
         };
       })
       .filter((r) => r.openInvoiceCount > 0)
@@ -114,6 +134,11 @@ export class ArService {
     if (!debtor) {
       throw new NotFoundException('Debtor not found');
     }
+    const interactions = await this.prisma.debtorInteraction.findMany({
+      where: { clientId, debtorId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
     return {
       id: debtor.id,
       name: debtor.name,
@@ -128,6 +153,16 @@ export class ArService {
         status: i.status,
         overdueDays: overdueDays(i.dueDate, asOf),
         bucket: bucketFor(i.dueDate, asOf),
+      })),
+      scoreValue: debtor.scoreValue,
+      scoreBand: debtor.scoreBand,
+      recommendedAction: debtor.recommendedAction,
+      scoreRationale: debtor.scoreRationale,
+      interactions: interactions.map((i) => ({
+        id: i.id,
+        type: i.type,
+        summary: i.summary,
+        createdAt: i.createdAt,
       })),
     };
   }

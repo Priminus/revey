@@ -8,7 +8,14 @@ import { Badge, type BadgeTone } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { KpiTile } from '@/components/kpi-tile';
-import { useArSummary, useDebtors, useSyncAr, formatCents } from '@/lib/api/ar';
+import {
+  useArSummary,
+  useDebtors,
+  useSyncAr,
+  useScoreAll,
+  formatCents,
+  scoreBandTone,
+} from '@/lib/api/ar';
 
 function overdueBadgeTone(days: number): BadgeTone {
   if (days <= 0) return 'neutral';
@@ -29,6 +36,22 @@ function SyncButton(): ReactElement {
         <p className="tnum text-xs text-paid">
           Synced {data.debtors.toLocaleString('en-US')} debtors · {data.invoices.toLocaleString('en-US')} invoices
         </p>
+      )}
+      {error && <p className="text-xs text-danger">{(error as Error).message}</p>}
+    </div>
+  );
+}
+
+function ScoreAllButton(): ReactElement {
+  const { mutate, isPending, data, error } = useScoreAll();
+
+  return (
+    <div className="flex flex-col items-end gap-1.5">
+      <Button variant="secondary" onClick={() => mutate()} disabled={isPending}>
+        {isPending ? 'Scoring…' : 'Score all'}
+      </Button>
+      {data && (
+        <p className="tnum text-xs text-paid">Scored {data.scored.toLocaleString('en-US')} debtors</p>
       )}
       {error && <p className="text-xs text-danger">{(error as Error).message}</p>}
     </div>
@@ -60,6 +83,7 @@ function DebtorsTable(): ReactElement {
             <th className="py-2 pr-4 font-semibold text-right">Outstanding</th>
             <th className="py-2 pr-4 font-semibold text-right">Worst overdue</th>
             <th className="py-2 pr-4 font-semibold text-right">Open invoices</th>
+            <th className="py-2 pr-4 font-semibold text-right">Score</th>
           </tr>
         </thead>
         <tbody>
@@ -85,6 +109,13 @@ function DebtorsTable(): ReactElement {
                 )}
               </td>
               <td className="tnum py-3 pr-4 text-right">{debtor.openInvoiceCount}</td>
+              <td className="py-3 pr-4 text-right">
+                {debtor.scoreValue !== null ? (
+                  <Badge tone={scoreBandTone(debtor.scoreBand)}>{debtor.scoreValue}</Badge>
+                ) : (
+                  <span className="tnum text-muted">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -109,6 +140,9 @@ function Dashboard(): ReactElement {
               <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
                 Connections
               </Link>
+              <Link href="/approvals" className="transition-colors duration-200 hover:text-ink">
+                Approvals
+              </Link>
             </nav>
           </div>
         </div>
@@ -122,7 +156,10 @@ function Dashboard(): ReactElement {
               Accounts receivable, aging, and outreach at a glance.
             </p>
           </div>
-          <SyncButton />
+          <div className="flex items-start gap-3">
+            <ScoreAllButton />
+            <SyncButton />
+          </div>
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

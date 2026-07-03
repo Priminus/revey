@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { Badge, type BadgeTone } from '@/components/badge';
+import { Button } from '@/components/button';
 import { Card } from '@/components/card';
-import { useDebtor, formatCents } from '@/lib/api/ar';
+import { useDebtor, useDraftDebtor, formatCents, scoreBandTone } from '@/lib/api/ar';
 
 function bucketBadgeTone(bucket: string): BadgeTone {
   switch (bucket) {
@@ -23,6 +24,114 @@ function bucketBadgeTone(bucket: string): BadgeTone {
   }
 }
 
+function recommendedActionLabel(action: string): string {
+  return action
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function ScorePanel({
+  debtorId,
+  scoreValue,
+  scoreBand,
+  recommendedAction,
+  scoreRationale,
+}: {
+  debtorId: string;
+  scoreValue: number | null;
+  scoreBand: string | null;
+  recommendedAction: string | null;
+  scoreRationale: string | null;
+}): ReactElement {
+  const { mutate, isPending, data, error } = useDraftDebtor(debtorId);
+
+  return (
+    <Card className="mt-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+          Agent score
+        </h2>
+        <Button variant="secondary" onClick={() => mutate()} disabled={isPending}>
+          {isPending ? 'Drafting…' : 'Draft outreach'}
+        </Button>
+      </div>
+
+      {scoreValue === null ? (
+        <p className="text-sm text-muted">Not scored yet — run &ldquo;Score all&rdquo; from the dashboard.</p>
+      ) : (
+        <div className="flex flex-wrap items-start gap-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Score</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              <span className="tnum font-display text-2xl font-semibold">{scoreValue}</span>
+              <Badge tone={scoreBandTone(scoreBand)}>{scoreBand}</Badge>
+            </div>
+          </div>
+          {recommendedAction && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                Recommended action
+              </p>
+              <p className="mt-1.5 text-sm font-medium text-ink">
+                {recommendedActionLabel(recommendedAction)}
+              </p>
+            </div>
+          )}
+          {scoreRationale && (
+            <div className="min-w-[200px] flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+                Rationale
+              </p>
+              <p className="mt-1.5 text-sm text-muted">{scoreRationale}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {data && (
+        <p className="mt-4 text-sm text-paid">
+          Draft created —{' '}
+          <Link href="/approvals" className="font-medium underline hover:text-paid-deep">
+            review it in Approvals
+          </Link>
+          .
+        </p>
+      )}
+      {error && <p className="mt-4 text-sm text-danger">{(error as Error).message}</p>}
+    </Card>
+  );
+}
+
+function InteractionHistory({
+  interactions,
+}: {
+  interactions: { id: string; type: string; summary: string; createdAt: string }[];
+}): ReactElement {
+  return (
+    <Card className="mt-6">
+      <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+        Interaction history
+      </h2>
+      {interactions.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted">No interactions yet.</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {interactions.map((interaction) => (
+            <li key={interaction.id} className="flex items-start justify-between gap-4 py-3">
+              <div>
+                <Badge tone="neutral">{interaction.type}</Badge>
+                <p className="mt-1.5 text-sm text-ink">{interaction.summary}</p>
+              </div>
+              <span className="tnum shrink-0 text-xs text-muted">{interaction.createdAt}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function DebtorDetail(): ReactElement {
   const params = useParams<{ id: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
@@ -30,6 +139,25 @@ function DebtorDetail(): ReactElement {
 
   return (
     <div className="min-h-screen bg-paper text-ink">
+      <header className="border-b border-line bg-paper">
+        <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-8">
+            <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
+            <nav className="flex items-center gap-5 text-sm font-medium text-muted">
+              <Link href="/" className="transition-colors duration-200 hover:text-ink">
+                Dashboard
+              </Link>
+              <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
+                Connections
+              </Link>
+              <Link href="/approvals" className="transition-colors duration-200 hover:text-ink">
+                Approvals
+              </Link>
+            </nav>
+          </div>
+        </div>
+      </header>
+
       <div className="mx-auto max-w-4xl px-6 py-8">
         <Link
           href="/"
@@ -95,6 +223,16 @@ function DebtorDetail(): ReactElement {
                 </div>
               )}
             </Card>
+
+            <ScorePanel
+              debtorId={debtor.id}
+              scoreValue={debtor.scoreValue}
+              scoreBand={debtor.scoreBand}
+              recommendedAction={debtor.recommendedAction}
+              scoreRationale={debtor.scoreRationale}
+            />
+
+            <InteractionHistory interactions={debtor.interactions} />
           </>
         )}
       </div>

@@ -3,11 +3,11 @@
 import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from './client';
-import { AGING_BUCKETS, formatCents } from './ar-format';
-import type { AgingBucket } from './ar-format';
+import { AGING_BUCKETS, formatCents, scoreBandTone } from './ar-format';
+import type { AgingBucket, DraftRow, ScoreBand } from './ar-format';
 
-export type { AgingBucket };
-export { AGING_BUCKETS, formatCents };
+export type { AgingBucket, DraftRow, ScoreBand };
+export { AGING_BUCKETS, formatCents, scoreBandTone };
 
 export interface ArSummary {
   totalOutstandingCents: number;
@@ -23,6 +23,10 @@ export interface DebtorRow {
   outstandingCents: number;
   worstOverdueDays: number;
   openInvoiceCount: number;
+  scoreValue: number | null;
+  scoreBand: ScoreBand | null;
+  recommendedAction: string | null;
+  scoreRationale: string | null;
 }
 export interface InvoiceRow {
   id: string;
@@ -35,11 +39,22 @@ export interface InvoiceRow {
   overdueDays: number;
   bucket: AgingBucket;
 }
+export interface InteractionRow {
+  id: string;
+  type: string;
+  summary: string;
+  createdAt: string;
+}
 export interface DebtorDetail {
   id: string;
   name: string;
   email: string | null;
   invoices: InvoiceRow[];
+  scoreValue: number | null;
+  scoreBand: ScoreBand | null;
+  recommendedAction: string | null;
+  scoreRationale: string | null;
+  interactions: InteractionRow[];
 }
 
 export function useArSummary() {
@@ -76,5 +91,104 @@ export function useSyncAr() {
         method: 'POST',
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ar'] }),
+  });
+}
+
+export interface ScoreResult {
+  scoreValue: number;
+  scoreBand: ScoreBand;
+  recommendedAction: string;
+  rationale: string;
+}
+
+export function useScoreAll() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      apiFetch<{ scored: number }>('/agent/score', await getToken(), { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ar'] });
+      qc.invalidateQueries({ queryKey: ['agent'] });
+    },
+  });
+}
+
+export function useScoreDebtor(id: string) {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      apiFetch<ScoreResult>(`/agent/debtors/${id}/score`, await getToken(), { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ar'] });
+      qc.invalidateQueries({ queryKey: ['agent'] });
+    },
+  });
+}
+
+export function useDraftDebtor(id: string) {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      apiFetch<{ id: string }>(`/agent/debtors/${id}/draft`, await getToken(), { method: 'POST' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agent'] });
+    },
+  });
+}
+
+export function useDrafts() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['agent', 'drafts'],
+    queryFn: async () => apiFetch<DraftRow[]>('/agent/drafts', await getToken()),
+  });
+}
+
+export function useEditDraft() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      subject,
+      body,
+    }: {
+      id: string;
+      subject?: string;
+      body?: string;
+    }) =>
+      apiFetch<void>(`/agent/drafts/${id}`, await getToken(), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, body }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', 'drafts'] }),
+  });
+}
+
+export function useApproveDraft() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      apiFetch<{ status: 'sent' | 'failed'; error?: string }>(
+        `/agent/drafts/${id}/approve`,
+        await getToken(),
+        { method: 'POST' },
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', 'drafts'] }),
+  });
+}
+
+export function useRejectDraft() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      apiFetch<void>(`/agent/drafts/${id}/reject`, await getToken(), { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', 'drafts'] }),
   });
 }

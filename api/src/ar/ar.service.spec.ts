@@ -42,11 +42,29 @@ describe('ArService', () => {
     const prisma = {
       debtor: {
         findMany: jest.fn().mockResolvedValue([
-          { id: 'd1', name: 'Small', email: null, invoices: [inv({ amountDueCents: 1000, dueDate: new Date('2026-06-25T00:00:00Z') })] },
-          { id: 'd2', name: 'Big', email: 'b@x.co', invoices: [
-            inv({ amountDueCents: 20000, dueDate: new Date('2026-03-01T00:00:00Z') }),
-            inv({ amountDueCents: 0 }),
-          ] },
+          {
+            id: 'd1',
+            name: 'Small',
+            email: null,
+            scoreValue: null,
+            scoreBand: null,
+            recommendedAction: null,
+            scoreRationale: null,
+            invoices: [inv({ amountDueCents: 1000, dueDate: new Date('2026-06-25T00:00:00Z') })],
+          },
+          {
+            id: 'd2',
+            name: 'Big',
+            email: 'b@x.co',
+            scoreValue: 72,
+            scoreBand: 'likely',
+            recommendedAction: 'gentle_reminder',
+            scoreRationale: 'Pays reliably, just slow this cycle.',
+            invoices: [
+              inv({ amountDueCents: 20000, dueDate: new Date('2026-03-01T00:00:00Z') }),
+              inv({ amountDueCents: 0 }),
+            ],
+          },
         ]),
       },
       invoice: { findMany: jest.fn() },
@@ -57,6 +75,51 @@ describe('ArService', () => {
     expect(rows[0].outstandingCents).toBe(20000);
     expect(rows[0].openInvoiceCount).toBe(1);
     expect(rows[0].worstOverdueDays).toBeGreaterThan(90);
+    expect(rows[0].scoreValue).toBe(72);
+    expect(rows[0].scoreBand).toBe('likely');
+    expect(rows[0].recommendedAction).toBe('gentle_reminder');
+    expect(rows[0].scoreRationale).toBe('Pays reliably, just slow this cycle.');
+    expect(rows[1].scoreValue).toBeNull();
+    expect(rows[1].scoreBand).toBeNull();
+    expect(rows[1].recommendedAction).toBeNull();
+    expect(rows[1].scoreRationale).toBeNull();
+  });
+
+  it('includes score fields and interaction history on debtor detail', async () => {
+    const prisma = {
+      debtor: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'd1',
+          name: 'Acme',
+          email: 'a@acme.co',
+          scoreValue: 40,
+          scoreBand: 'uncertain',
+          recommendedAction: 'firm_reminder',
+          scoreRationale: 'Two invoices slipping past 30 days.',
+          invoices: [],
+        }),
+      },
+      invoice: { findMany: jest.fn() },
+      debtorInteraction: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'x1', type: 'email_sent', summary: 'Sent: Reminder', createdAt: new Date('2026-06-01T00:00:00Z') },
+        ]),
+      },
+    };
+    const svc = new ArService(prisma as never, { sync: jest.fn() } as never);
+    const detail = await svc.getDebtor('c1', 'd1', asOf);
+    expect(detail.scoreValue).toBe(40);
+    expect(detail.scoreBand).toBe('uncertain');
+    expect(detail.recommendedAction).toBe('firm_reminder');
+    expect(detail.scoreRationale).toBe('Two invoices slipping past 30 days.');
+    expect(detail.interactions).toEqual([
+      { id: 'x1', type: 'email_sent', summary: 'Sent: Reminder', createdAt: new Date('2026-06-01T00:00:00Z') },
+    ]);
+    expect(prisma.debtorInteraction.findMany).toHaveBeenCalledWith({
+      where: { clientId: 'c1', debtorId: 'd1' },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
   });
 
   it('throws when a debtor is not in the client', async () => {
