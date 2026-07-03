@@ -10,9 +10,20 @@ import { CryptoModule } from './crypto/crypto.module';
 import { XeroModule } from './integrations/xero/xero.module';
 import { ArModule } from './ar/ar.module';
 import { LlmModule } from './llm/llm.module';
+import { MessagingModule } from './messaging/messaging.module';
 
 @Module({
-  imports: [HealthModule, PrismaModule, AuthModule, TenantModule, CryptoModule, XeroModule, ArModule, LlmModule],
+  imports: [
+    HealthModule,
+    PrismaModule,
+    AuthModule,
+    TenantModule,
+    CryptoModule,
+    XeroModule,
+    ArModule,
+    LlmModule,
+    MessagingModule,
+  ],
   providers: [
     { provide: APP_GUARD, useExisting: ClerkGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
