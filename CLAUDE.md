@@ -26,6 +26,7 @@ Use supabase for data. Use prisma for migrations.
 Use NestJS and NextJS. Use Clerk for auth. Do not use Clerk Organizations.
 GitHub project is setup. Push to "master" branch.
 gcloud is available to you.
+Do not use feature branches, use worktrees.
 Use GPT API key. Use gpt-image-2 for image generation. Since GPT won't generate real people, in your POST request please use a real picture of said person as input if required.
 Use Postmark for emails.
 For payments, if subscription mode or only accepting payments, use Stripe. If you require capability to send money as well, use Paypal for BOTH accepting payments and sending.
