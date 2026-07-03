@@ -12,6 +12,7 @@ import { ArModule } from './ar/ar.module';
 import { LlmModule } from './llm/llm.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { AgentModule } from './agent/agent.module';
+import { ConfigModule } from './config/config.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AgentModule } from './agent/agent.module';
     LlmModule,
     MessagingModule,
     AgentModule,
+    ConfigModule,
   ],
   providers: [
     { provide: APP_GUARD, useExisting: ClerkGuard },
