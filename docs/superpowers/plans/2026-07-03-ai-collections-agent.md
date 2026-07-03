@@ -813,3 +813,27 @@ git commit -m "feat: score badges, debtor agent panel, approvals queue UI"
 **Type consistency:** `ScoreResult` (Task 3) persisted to the `Debtor` score fields (Task 2) and surfaced via `ArService` (Task 8). `OutreachDraft` fields (Task 2) match `DraftingService.create` (Task 4) and `ApprovalsService` reads/writes (Task 6). `MessagingService.sendEmail` (Task 5) is consumed by `approveAndSend` (Task 6). `DebtorInteraction` (Task 2) is written on send (Task 6) and read by scoring/drafting (Tasks 3–4). `@ClientId()` scopes every `agent` route.
 
 **Email safety:** `OUTREACH_REDIRECT_EMAIL` is honored in `MessagingService` (Task 5) — the single choke point every send passes through — and surfaced in the UI (Task 8). No send occurs without a human `approve` (Task 6 invariant).
+
+---
+
+## Carried forward to Plan 5 (from Plan 4 final review)
+
+Plan 4's three safety invariants (email redirect, approve-before-send, tenant scoping) are
+enforced and verified. These non-blocking follow-ups were surfaced and deferred:
+
+1. **`edit`/`reject` are TOCTOU** — they read status then write unconditionally, so a
+   concurrent `approveAndSend` claim could be stomped (e.g. reject flips a mid-send draft
+   to `rejected` after the email already went). Make them atomic (`updateMany` with a
+   status predicate) like `approveAndSend`. No double-send risk; data-integrity edge only.
+2. **`sending` state has no crash-recovery** — if the process dies between claim and the
+   `sent`/`failed` write, the draft is stuck `sending` (visible in the queue but not
+   retryable/editable). Add a timeout-based reclaim (e.g. `sending` older than N minutes →
+   back to `failed`).
+3. **Prompt-injection hardening** — debtor name / interaction summaries are interpolated
+   into LLM prompts; delimit/escape them so free-text can't steer scoring/drafting.
+4. **Drafting for a debtor with no email** — currently allowed; it only fails at approve
+   time. Flag "no email on file" at draft creation, or block it.
+5. **Batch scoring** — `scoreAllOpen` is sequential and synchronous within one request;
+   move to bounded concurrency / a background job for large rosters.
+6. **DraftingService subject/body** are not runtime-validated (could persist `undefined`
+   on malformed LLM JSON) — add a guard.
