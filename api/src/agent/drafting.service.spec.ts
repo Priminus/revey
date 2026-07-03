@@ -5,7 +5,7 @@ describe('DraftingService', () => {
     debtor: { findFirst: jest.fn() },
     invoice: { findMany: jest.fn() },
     outreachDraft: { create: jest.fn() },
-    emailTemplate: { findUnique: jest.fn() },
+    emailTemplate: { findFirst: jest.fn() },
   };
   const llm = { completeJson: jest.fn() };
   const flowService = { resolveForClient: jest.fn() };
@@ -29,7 +29,7 @@ describe('DraftingService', () => {
     flowService.resolveForClient.mockResolvedValue({
       steps: [{ id: 's1', offsetDays: 14, order: 2, templateId: 't1', templateName: 'Firm' }],
     });
-    prisma.emailTemplate.findUnique.mockResolvedValue({
+    prisma.emailTemplate.findFirst.mockResolvedValue({
       subject: 'Overdue {{debtor_name}}',
       body: 'You owe {{outstanding_amount}}: {{invoice_list}}',
     });
@@ -38,6 +38,10 @@ describe('DraftingService', () => {
 
     const out = await svc.draftForDebtor('c1', 'd1', new Date('2026-06-01T00:00:00Z'));
     expect(out).toEqual({ id: 'draft1' });
+
+    expect(prisma.emailTemplate.findFirst).toHaveBeenCalledWith({
+      where: { id: 't1', OR: [{ clientId: null }, { clientId: 'c1' }] },
+    });
 
     const arg = prisma.outreachDraft.create.mock.calls[0][0];
     expect(arg.data.status).toBe('pending');
@@ -75,7 +79,7 @@ describe('DraftingService', () => {
     expect(arg.data.templateId).toBeNull();
     expect(arg.data.stepOffsetDays).toBeNull();
 
-    expect(prisma.emailTemplate.findUnique).not.toHaveBeenCalled();
+    expect(prisma.emailTemplate.findFirst).not.toHaveBeenCalled();
     const llmArg = llm.completeJson.mock.calls[0][0];
     expect(llmArg.user).toContain('Recommended action: firm_followup');
   });

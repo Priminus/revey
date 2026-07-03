@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface StepView {
@@ -78,19 +78,26 @@ export class FlowService {
       where: { clientId: null },
       include: { steps: true },
     });
-    await this.prisma.$transaction(async (tx) => {
-      const flow = await tx.reminderFlow.create({ data: { clientId } });
-      if (global && global.steps.length > 0) {
-        await tx.reminderStep.createMany({
-          data: global.steps.map((s) => ({
-            flowId: flow.id,
-            offsetDays: s.offsetDays,
-            templateId: s.templateId,
-            order: s.order,
-          })),
-        });
-      }
-    });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const flow = await tx.reminderFlow.create({ data: { clientId } });
+        if (global && global.steps.length > 0) {
+          await tx.reminderStep.createMany({
+            data: global.steps.map((s) => ({
+              flowId: flow.id,
+              offsetDays: s.offsetDays,
+              templateId: s.templateId,
+              order: s.order,
+            })),
+          });
+        }
+      });
+    } catch (err: unknown) {
+      // A concurrent customize() call may have already created the client flow
+      // (unique constraint on clientId). Treat that as a benign race, not an error.
+      if ((err as { code?: string })?.code === 'P2002') return;
+      throw err;
+    }
   }
 
   async reset(clientId: string): Promise<void> {
@@ -103,19 +110,43 @@ export class FlowService {
     scope: FlowScope,
     steps: { offsetDays: number; templateId: string; order: number }[],
   ): Promise<void> {
-    let flow = await this.flowFor(clientId, scope);
-    if (!flow) {
-      if (scope === 'global') {
-        flow = await this.prisma.reminderFlow.create({ data: { clientId: null } });
-      } else {
-        throw new ConflictException('Customize the client flow before editing its steps');
+    for (const s of steps) {
+      if (!Number.isInteger(s.offsetDays)) {
+        throw new BadRequestException('Each step offsetDays must be an integer');
+      }
+      if (typeof s.templateId !== 'string' || s.templateId.trim().length === 0) {
+        throw new BadRequestException('Each step templateId must be a non-empty string');
+      }
+      if (typeof s.order !== 'number' || Number.isNaN(s.order)) {
+        throw new BadRequestException('Each step order must be a number');
       }
     }
+
+    const templateIds = [...new Set(steps.map((s) => s.templateId))];
+    if (templateIds.length > 0) {
+      const found = await this.prisma.emailTemplate.findMany({
+        where: { id: { in: templateIds }, OR: [{ clientId: null }, { clientId }] },
+        select: { id: true },
+      });
+      if (found.length !== templateIds.length) {
+        throw new BadRequestException('One or more templates are not available in this scope');
+      }
+    }
+
+    const flow = await this.flowFor(clientId, scope);
+    let flowId: string;
+    if (flow) {
+      flowId = flow.id;
+    } else if (scope === 'global') {
+      flowId = await this.ensureGlobal();
+    } else {
+      throw new ConflictException('Customize the client flow before editing its steps');
+    }
     await this.prisma.$transaction([
-      this.prisma.reminderStep.deleteMany({ where: { flowId: flow.id } }),
+      this.prisma.reminderStep.deleteMany({ where: { flowId } }),
       this.prisma.reminderStep.createMany({
         data: steps.map((s) => ({
-          flowId: flow.id,
+          flowId,
           offsetDays: s.offsetDays,
           templateId: s.templateId,
           order: s.order,

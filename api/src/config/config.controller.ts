@@ -3,12 +3,16 @@ import { ClientId } from '../tenancy/client-id.decorator';
 import { TemplateService, TemplateScope } from './template.service';
 import { FlowService, FlowScope, StepView } from './flow.service';
 
-function parseScope(scope: string | undefined): FlowScope {
-  const value = scope ?? 'client';
+function parseScope(raw: unknown): FlowScope {
+  const value = raw ?? 'client';
   if (value !== 'global' && value !== 'client') {
     throw new BadRequestException("scope must be 'global' or 'client'");
   }
   return value;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 @Controller('config')
@@ -28,7 +32,11 @@ export class ConfigController {
     @ClientId() clientId: string,
     @Body() dto: { scope: TemplateScope; name: string; subject: string; body: string },
   ) {
-    return this.templates.create(clientId, dto.scope, {
+    const scope = parseScope(dto?.scope);
+    if (!isNonEmptyString(dto?.name) || !isNonEmptyString(dto?.subject) || !isNonEmptyString(dto?.body)) {
+      throw new BadRequestException('name/subject/body required');
+    }
+    return this.templates.create(clientId, scope, {
       name: dto.name,
       subject: dto.subject,
       body: dto.body,

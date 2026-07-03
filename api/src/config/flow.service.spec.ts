@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { selectStepFor, FlowService } from './flow.service';
 
 describe('selectStepFor', () => {
@@ -32,10 +32,14 @@ describe('FlowService', () => {
     createMany: jest.fn(),
     deleteMany: jest.fn(),
   };
+  const emailTemplate = {
+    findMany: jest.fn(),
+  };
   const tx = { reminderFlow, reminderStep };
   const prisma = {
     reminderFlow,
     reminderStep,
+    emailTemplate,
     $transaction: jest.fn(async (arg: unknown) => {
       if (Array.isArray(arg)) {
         return Promise.all(arg);
@@ -47,6 +51,10 @@ describe('FlowService', () => {
     }),
   };
   const svc = new FlowService(prisma as never);
+
+  beforeEach(() => {
+    emailTemplate.findMany.mockResolvedValue([{ id: 't1' }]);
+  });
 
   afterEach(() => jest.clearAllMocks());
 
@@ -140,6 +148,17 @@ describe('FlowService', () => {
       });
     });
 
+    it('swallows a P2002 unique-constraint race (concurrent customize already created the flow)', async () => {
+      prisma.reminderFlow.findUnique.mockResolvedValueOnce(null); // existing client flow check
+      prisma.reminderFlow.findFirst.mockResolvedValueOnce({ id: 'flow-global', clientId: null, steps: [] });
+      prisma.$transaction.mockImplementationOnce(async () => {
+        const err = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+        throw err;
+      });
+
+      await expect(svc.customize('c1')).resolves.toBeUndefined();
+    });
+
     it('is a no-op when a client flow already exists', async () => {
       prisma.reminderFlow.findUnique.mockResolvedValueOnce({ id: 'flow-client', clientId: 'c1' });
 
@@ -192,13 +211,35 @@ describe('FlowService', () => {
     });
 
     it('creates the global flow row when missing for scope=global', async () => {
-      prisma.reminderFlow.findFirst.mockResolvedValueOnce(null);
+      // First null: flowFor(global) lookup. Second null: ensureGlobal()'s own lookup.
+      prisma.reminderFlow.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
       prisma.reminderFlow.create.mockResolvedValueOnce({ id: 'flow-global', clientId: null });
 
       await svc.replaceSteps('c1', 'global', [{ offsetDays: 1, templateId: 't1', order: 1 }]);
 
       expect(prisma.reminderFlow.create).toHaveBeenCalledWith({ data: { clientId: null } });
       expect(prisma.reminderStep.deleteMany).toHaveBeenCalledWith({ where: { flowId: 'flow-global' } });
+    });
+
+    it('throws BadRequestException when a templateId is not in-scope, and does not run the transaction', async () => {
+      prisma.reminderFlow.findUnique.mockResolvedValueOnce({ id: 'flow-client', clientId: 'c1' });
+      emailTemplate.findMany.mockResolvedValueOnce([]); // submitted templateId not found in scope
+
+      await expect(
+        svc.replaceSteps('c1', 'client', [{ offsetDays: 1, templateId: 'foreign-t1', order: 1 }]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.reminderStep.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when offsetDays is not an integer', async () => {
+      await expect(
+        svc.replaceSteps('c1', 'client', [{ offsetDays: 1.5, templateId: 't1', order: 1 }]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(emailTemplate.findMany).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

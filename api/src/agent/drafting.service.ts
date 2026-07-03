@@ -52,8 +52,8 @@ export class DraftingService {
       );
       const idx = selectStepFor(oldestDaysOverdue, steps);
       const step = steps[idx];
-      const template = await this.prisma.emailTemplate.findUnique({
-        where: { id: step.templateId },
+      const template = await this.prisma.emailTemplate.findFirst({
+        where: { id: step.templateId, OR: [{ clientId: null }, { clientId }] },
       });
 
       if (template) {
