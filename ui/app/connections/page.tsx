@@ -1,8 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { Suspense, useEffect, useState, type ReactElement } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SignedIn, SignedOut, RedirectToSignIn, useAuth } from '@clerk/nextjs';
+import { Badge } from '@/components/badge';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
@@ -17,14 +21,14 @@ function XeroStatusBanner(): ReactElement | null {
 
   if (xero === 'connected') {
     return (
-      <div className="mb-4 rounded bg-green-100 text-green-800 px-4 py-2 text-sm">
+      <div className="mb-4 rounded-[14px] border border-line bg-paid-soft px-4 py-2 text-sm text-paid-deep">
         Xero connected successfully.
       </div>
     );
   }
   if (xero === 'error') {
     return (
-      <div className="mb-4 rounded bg-red-100 text-red-800 px-4 py-2 text-sm">
+      <div className="mb-4 rounded-[14px] border border-line bg-danger-soft px-4 py-2 text-sm text-danger">
         Failed to connect Xero. Please try again.
       </div>
     );
@@ -99,42 +103,55 @@ function XeroConnectionCard(): ReactElement {
   };
 
   return (
-    <div className="border rounded p-4 flex items-center justify-between max-w-md">
+    <Card className="flex max-w-md items-center justify-between">
       <div>
-        <p className="font-medium">Xero</p>
-        <p className="text-sm text-gray-500">Accounting &amp; AR data source</p>
+        <p className="font-display font-semibold">Xero</p>
+        <p className="text-sm text-muted">Accounting &amp; AR data source</p>
         {status?.connected && (
-          <p className="text-sm text-green-700 mt-1">
-            Connected to Xero (org: {status.xeroTenantId})
-          </p>
+          <div className="mt-2">
+            <Badge tone="paid">Connected · {status.xeroTenantId}</Badge>
+          </div>
         )}
-        {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
+        {error && <p className="mt-1 text-sm text-danger">{error}</p>}
       </div>
-      {!status?.connected && (
-        <button
-          onClick={() => void handleConnect()}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Connect Xero
-        </button>
-      )}
-    </div>
+      {!status?.connected && <Button onClick={() => void handleConnect()}>Connect Xero</Button>}
+    </Card>
   );
 }
 
 export default function ConnectionsPage(): ReactElement {
   return (
-    <main className="p-8">
+    <>
       <SignedIn>
-        <h1 className="text-2xl font-bold mb-4">Connections</h1>
-        <Suspense fallback={null}>
-          <XeroStatusBanner />
-        </Suspense>
-        <XeroConnectionCard />
+        <div className="min-h-screen bg-paper text-ink">
+          <header className="border-b border-line bg-paper">
+            <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-8">
+                <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
+                <nav className="flex items-center gap-5 text-sm font-medium text-muted">
+                  <Link href="/" className="transition-colors duration-200 hover:text-ink">
+                    Dashboard
+                  </Link>
+                  <Link href="/connections" className="text-ink">
+                    Connections
+                  </Link>
+                </nav>
+              </div>
+            </div>
+          </header>
+
+          <main className="mx-auto max-w-(--maxw) px-6 py-8">
+            <h1 className="mb-4 text-[1.75rem] font-semibold">Connections</h1>
+            <Suspense fallback={null}>
+              <XeroStatusBanner />
+            </Suspense>
+            <XeroConnectionCard />
+          </main>
+        </div>
       </SignedIn>
       <SignedOut>
         <RedirectToSignIn />
       </SignedOut>
-    </main>
+    </>
   );
 }

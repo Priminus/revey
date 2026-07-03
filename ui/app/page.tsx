@@ -4,27 +4,33 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { AgingChart } from '@/components/aging-chart';
+import { Badge, type BadgeTone } from '@/components/badge';
+import { Button } from '@/components/button';
+import { Card } from '@/components/card';
 import { KpiTile } from '@/components/kpi-tile';
 import { useArSummary, useDebtors, useSyncAr, formatCents } from '@/lib/api/ar';
+
+function overdueBadgeTone(days: number): BadgeTone {
+  if (days <= 0) return 'neutral';
+  if (days > 60) return 'danger';
+  if (days > 0) return 'overdue';
+  return 'neutral';
+}
 
 function SyncButton(): ReactElement {
   const { mutate, isPending, data, error } = useSyncAr();
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <button
-        onClick={() => mutate()}
-        disabled={isPending}
-        className="inline-flex items-center gap-2 rounded-lg bg-[#2a78d6] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#256abf] disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button onClick={() => mutate()} disabled={isPending}>
         {isPending ? 'Syncing…' : 'Sync from Xero'}
-      </button>
+      </Button>
       {data && (
-        <p className="text-xs text-[#0ca30c]">
+        <p className="tnum text-xs text-paid">
           Synced {data.debtors.toLocaleString('en-US')} debtors · {data.invoices.toLocaleString('en-US')} invoices
         </p>
       )}
-      {error && <p className="text-xs text-[#d03b3b]">{(error as Error).message}</p>}
+      {error && <p className="text-xs text-danger">{(error as Error).message}</p>}
     </div>
   );
 }
@@ -33,12 +39,12 @@ function DebtorsTable(): ReactElement {
   const { data: debtors, isLoading } = useDebtors();
 
   if (isLoading) {
-    return <p className="text-sm text-[#898781] py-8 text-center">Loading debtors…</p>;
+    return <p className="py-8 text-center text-sm text-muted">Loading debtors…</p>;
   }
 
   if (!debtors || debtors.length === 0) {
     return (
-      <p className="text-sm text-[#898781] py-8 text-center">
+      <p className="py-8 text-center text-sm text-muted">
         No AR yet — connect Xero and Sync.
       </p>
     );
@@ -48,7 +54,7 @@ function DebtorsTable(): ReactElement {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-black/10 dark:border-white/10 text-left text-[11px] uppercase tracking-[0.1em] text-[#898781]">
+          <tr className="border-b border-line text-left text-[13px] text-muted">
             <th className="py-2 pr-4 font-semibold">Debtor</th>
             <th className="py-2 pr-4 font-semibold">Email</th>
             <th className="py-2 pr-4 font-semibold text-right">Outstanding</th>
@@ -60,24 +66,25 @@ function DebtorsTable(): ReactElement {
           {debtors.map((debtor) => (
             <tr
               key={debtor.id}
-              className="border-b border-black/5 dark:border-white/5 last:border-0"
+              className="min-h-12 border-b border-line last:border-0 transition-colors duration-200 ease-[cubic-bezier(.22,.61,.36,1)] hover:bg-paid-tint"
             >
               <td className="py-3 pr-4 font-medium">
-                <Link
-                  href={`/debtors/${debtor.id}`}
-                  className="text-[#2a78d6] hover:underline"
-                >
+                <Link href={`/debtors/${debtor.id}`} className="text-ink transition-colors duration-200 hover:text-paid">
                   {debtor.name}
                 </Link>
               </td>
-              <td className="py-3 pr-4 text-[#52514e]">{debtor.email ?? '—'}</td>
-              <td className="py-3 pr-4 text-right tabular-nums">
-                {formatCents(debtor.outstandingCents)}
+              <td className="py-3 pr-4 text-muted">{debtor.email ?? '—'}</td>
+              <td className="tnum py-3 pr-4 text-right">{formatCents(debtor.outstandingCents)}</td>
+              <td className="py-3 pr-4 text-right">
+                {debtor.worstOverdueDays > 0 ? (
+                  <Badge tone={overdueBadgeTone(debtor.worstOverdueDays)}>
+                    {debtor.worstOverdueDays}d
+                  </Badge>
+                ) : (
+                  <span className="tnum text-muted">—</span>
+                )}
               </td>
-              <td className="py-3 pr-4 text-right tabular-nums">
-                {debtor.worstOverdueDays > 0 ? `${debtor.worstOverdueDays}d` : '—'}
-              </td>
-              <td className="py-3 pr-4 text-right tabular-nums">{debtor.openInvoiceCount}</td>
+              <td className="tnum py-3 pr-4 text-right">{debtor.openInvoiceCount}</td>
             </tr>
           ))}
         </tbody>
@@ -90,16 +97,16 @@ function Dashboard(): ReactElement {
   const { data: summary } = useArSummary();
 
   return (
-    <div className="min-h-screen bg-[#f9f9f7] dark:bg-[#0d0d0d] text-[#0b0b0b] dark:text-white">
-      <header className="border-b border-black/10 dark:border-white/10 bg-[#fcfcfb] dark:bg-[#1a1a19]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="border-b border-line bg-paper">
+        <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
           <div className="flex items-center gap-8">
-            <span className="text-lg font-bold tracking-[-0.01em]">Revey</span>
-            <nav className="flex items-center gap-5 text-sm font-medium text-[#52514e]">
-              <Link href="/" className="text-[#0b0b0b] dark:text-white">
+            <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
+            <nav className="flex items-center gap-5 text-sm font-medium text-muted">
+              <Link href="/" className="text-ink">
                 Dashboard
               </Link>
-              <Link href="/connections" className="hover:text-[#0b0b0b] dark:hover:text-white">
+              <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
                 Connections
               </Link>
             </nav>
@@ -107,11 +114,11 @@ function Dashboard(): ReactElement {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-(--maxw) px-6 py-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-sm text-[#898781] mt-1">
+            <h1 className="text-[1.75rem] font-semibold">Dashboard</h1>
+            <p className="mt-1 text-sm text-muted">
               Accounts receivable, aging, and outreach at a glance.
             </p>
           </div>
@@ -135,14 +142,18 @@ function Dashboard(): ReactElement {
           />
         </div>
 
-        <div className="mb-6">{summary && <AgingChart aging={summary.aging} />}</div>
+        {summary && (
+          <Card className="mb-6">
+            <AgingChart aging={summary.aging} />
+          </Card>
+        )}
 
-        <div className="rounded-xl border border-black/10 dark:border-white/10 bg-[#fcfcfb] dark:bg-[#1a1a19] px-6 py-5">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#898781] mb-3">
+        <Card>
+          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
             Debtors
           </h2>
           <DebtorsTable />
-        </div>
+        </Card>
       </main>
     </div>
   );
