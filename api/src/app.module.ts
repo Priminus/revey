@@ -11,6 +11,7 @@ import { XeroModule } from './integrations/xero/xero.module';
 import { ArModule } from './ar/ar.module';
 import { LlmModule } from './llm/llm.module';
 import { MessagingModule } from './messaging/messaging.module';
+import { AgentModule } from './agent/agent.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { MessagingModule } from './messaging/messaging.module';
     ArModule,
     LlmModule,
     MessagingModule,
+    AgentModule,
   ],
   providers: [
     { provide: APP_GUARD, useExisting: ClerkGuard },

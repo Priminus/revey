@@ -1,0 +1,62 @@
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { ClientId } from '../tenancy/client-id.decorator';
+import { ScoringService, ScoreResult } from './scoring.service';
+import { DraftingService } from './drafting.service';
+import { ApprovalsService, DraftRow } from './approvals.service';
+
+@Controller('agent')
+export class AgentController {
+  constructor(
+    private readonly scoring: ScoringService,
+    private readonly drafting: DraftingService,
+    private readonly approvals: ApprovalsService,
+  ) {}
+
+  @Post('score')
+  scoreAll(@ClientId() clientId: string): Promise<{ scored: number }> {
+    return this.scoring.scoreAllOpen(clientId);
+  }
+
+  @Post('debtors/:id/score')
+  scoreDebtor(
+    @ClientId() clientId: string,
+    @Param('id') id: string,
+  ): Promise<ScoreResult> {
+    return this.scoring.scoreDebtor(clientId, id);
+  }
+
+  @Post('debtors/:id/draft')
+  draftForDebtor(
+    @ClientId() clientId: string,
+    @Param('id') id: string,
+  ): Promise<{ id: string }> {
+    return this.drafting.draftForDebtor(clientId, id);
+  }
+
+  @Get('drafts')
+  listPending(@ClientId() clientId: string): Promise<DraftRow[]> {
+    return this.approvals.listPending(clientId);
+  }
+
+  @Patch('drafts/:id')
+  edit(
+    @ClientId() clientId: string,
+    @Param('id') id: string,
+    @Body() patch: { subject?: string; body?: string },
+  ): Promise<void> {
+    return this.approvals.edit(clientId, id, patch);
+  }
+
+  @Post('drafts/:id/approve')
+  approve(
+    @ClientId() clientId: string,
+    @Param('id') id: string,
+  ): Promise<{ status: 'sent' | 'failed'; error?: string }> {
+    return this.approvals.approveAndSend(clientId, id);
+  }
+
+  @Post('drafts/:id/reject')
+  reject(@ClientId() clientId: string, @Param('id') id: string): Promise<void> {
+    return this.approvals.reject(clientId, id);
+  }
+}
