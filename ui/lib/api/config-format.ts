@@ -37,6 +37,13 @@ export function renderPreview(text: string, vars: Record<string, string>): strin
   );
 }
 
+/** e.g. -7 -> "7d before due", 0 -> "Due day", 14 -> "14d overdue" */
+export function offsetLabel(offsetDays: number): string {
+  if (offsetDays < 0) return `${Math.abs(offsetDays)}d before due`;
+  if (offsetDays === 0) return 'Due day';
+  return `${offsetDays}d overdue`;
+}
+
 export const SAMPLE_VARS: Record<string, string> = {
   debtor_name: 'Harbour Logistics Pte Ltd',
   outstanding_amount: '$86,150',
