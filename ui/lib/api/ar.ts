@@ -3,9 +3,11 @@
 import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from './client';
+import { AGING_BUCKETS, formatCents } from './ar-format';
+import type { AgingBucket } from './ar-format';
 
-export type AgingBucket = 'current' | '1-30' | '31-60' | '61-90' | '90+';
-export const AGING_BUCKETS: AgingBucket[] = ['current', '1-30', '31-60', '61-90', '90+'];
+export type { AgingBucket };
+export { AGING_BUCKETS, formatCents };
 
 export interface ArSummary {
   totalOutstandingCents: number;
@@ -38,10 +40,6 @@ export interface DebtorDetail {
   name: string;
   email: string | null;
   invoices: InvoiceRow[];
-}
-
-export function formatCents(cents: number): string {
-  return `$${Math.round(cents / 100).toLocaleString('en-US')}`;
 }
 
 export function useArSummary() {
