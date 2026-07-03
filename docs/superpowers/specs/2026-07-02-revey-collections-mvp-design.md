@@ -7,6 +7,23 @@
 
 ---
 
+> ## ⛔ TENANCY: DO NOT USE CLERK ORGANIZATIONS
+>
+> **Tenancy is per USER, not per Clerk Organization.** A user signs up with Clerk,
+> and each user maps to exactly one Revey `client` (the `clients.clerk_user_id`
+> column). The user then connects their own **Xero organisation** via OAuth — the
+> Xero org is the accounting data source, *not* an auth tenant.
+>
+> Clerk Organizations were tried and **removed** (they require a feature toggle the
+> instance doesn't have, add a pointless setup step, and are the wrong model: Xero
+> OAuth is a per-user connection, not an org-membership flow). **Do not reintroduce
+> Clerk Organizations, `org_id`/`org_role` claims, an org switcher, or org-scoped
+> tenancy.** If a future "one ops user manages many clients" console is needed, model
+> it as an explicit `client_id` selector over a `user ↔ client` membership table —
+> never Clerk orgs.
+
+---
+
 ## 1. Goal & scope
 
 Revey is an AI collections agent for mid-market B2B finance teams. It reads the
@@ -54,7 +71,7 @@ same UI later opened for customer self-serve.
 | Autonomy | **Approve-before-send (HITL)** | Safest for early debtor-relationship trust; generates rich feedback data. |
 | Scoring | **LLM reasoning over memory + AR data** | Explainable, needs no labeled data at start; matches "intelligence not days overdue". |
 | Orchestration | **LangGraph.js** inside NestJS | Long-running resumable state machine; native `interrupt()` for HITL; durable checkpointer; auditable graph. |
-| Auth + tenancy | **Clerk Organizations** | Each client company = one org; ops team spans orgs; roles for ops vs client users. |
+| Auth + tenancy | **Clerk (per-user)** | Each Clerk **user** maps to one Revey `client` via `clients.clerk_user_id`. **No Clerk Organizations** (see the ⛔ banner above). |
 | DB + storage | **Supabase** (Postgres + pgvector + storage + realtime) | Managed Postgres with SG region; RLS for DB-enforced tenant isolation; realtime for live queue/dashboards. |
 | Memory | **Mem0 (OSS, self-hosted) on Supabase pgvector** | Node SDK; clean `app_id`/`user_id` tenancy; all data stays in Supabase (residency); no extra datastore. |
 | Deploy | **Fly.io** (`sin` region) | API + UI as Fly apps; SG residency story for CFO/IT blockers. |
@@ -104,7 +121,8 @@ revey/
 
 - **`api/` (NestJS)** owns HTTP, DI, integrations, auth, and hosts the LangGraph runtime.
 - **`ui/` (Next.js)** is the **managed-service console** in P1; Phase 2 reuses the same
-  components, scoped by Clerk org + role, as the **client self-serve portal**.
+  components, scoped by the signed-in user's `client_id`, as the **client self-serve
+  portal**.
 - **Supabase Postgres** is the single datastore: relational tables (Prisma-migrated),
   `pgvector` for Mem0 memory, storage for attachments, realtime for live queue/dashboards.
 - **LangGraph checkpointer** persists workflow state to Supabase Postgres so collection
@@ -171,18 +189,19 @@ Modeled as one durable, resumable graph per debtor collection cycle:
 
 ## 6. Multi-tenancy & data residency
 
-- **Tenant = Clerk Organization = client company.** Ops-team members belong to multiple
-  orgs; client users (Phase 2) belong to one. Roles: `ops-admin`, `client-admin`,
-  `client-user`.
-- **Every table carries `client_id`.** Enforced two ways: (1) a NestJS tenant guard
-  derives `client_id` from the Clerk org and scopes all queries; (2) **Supabase RLS** as
-  DB-enforced defense-in-depth (Clerk JWT → Supabase). Ops-admin access is explicit and
-  audited.
+- **Tenant = Clerk USER = one Revey `client`.** A user signs up with Clerk; each Clerk
+  user maps to one `client` row via `clients.clerk_user_id`. **No Clerk Organizations**
+  (see the ⛔ banner at the top of this doc). The user connects their own **Xero org** via
+  OAuth as the accounting data source — the Xero org is *not* an auth tenant.
+- **Every table carries `client_id`.** Enforced two ways: (1) a NestJS tenant guard +
+  interceptor derives `client_id` from the Clerk **user id** (`auth.userId`) and scopes
+  all queries; (2) **Supabase RLS** as DB-enforced defense-in-depth. App-layer scoping is
+  the primary mechanism.
 - **Memory isolation:** Mem0 `app_id = client_id`, `user_id = debtor_id`,
   `run_id = collection case`. Per-client and per-debtor isolation by construction.
 - **Residency:** target is Supabase (SG) + Fly.io (`sin`) to keep client AR data and
   memory in-region — the answer to CFO/IT/Legal blockers in the ICP. **Current caveat:**
-  the provisioned Supabase project is in Tokyo (`ap-northeast-1`); still APAC but not SG.
+  the provisioned Supabase project is in Mumbai (`ap-south-1`); still APAC but not SG.
   Revisit region before onboarding design partners with strict SG-residency requirements.
 
 ---

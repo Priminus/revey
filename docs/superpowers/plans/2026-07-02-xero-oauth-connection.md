@@ -1,5 +1,14 @@
 # Xero OAuth Connection Implementation Plan (Plan 2)
 
+> ## ⛔ TENANCY IS PER-USER, NOT CLERK ORGANIZATIONS
+> Where this plan says the tenant interceptor "resolves `client_id` from the Clerk org"
+> or references `clerkOrgId`/`org_id`, that is **historical**. As of migration
+> `user_based_tenancy` (2026-07-02), `TenantService.resolveClientId` maps `auth.userId`
+> (the Clerk **user**) → `client` via `clients.clerk_user_id`. A user signs up, maps to
+> one client, and connects their own **Xero org** via OAuth (Xero org = data source, not
+> auth tenant). **Do NOT reintroduce Clerk Organizations.** See the ⛔ banner in the design
+> spec.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let a Revey client connect their Xero organisation via OAuth 2.0, storing encrypted per-client tokens that auto-refresh, with every Revey API route tenant-scoped by the Clerk-org → `client_id` mapping.
@@ -895,3 +904,27 @@ git commit -m "feat: console Connections page + UI health check"
 **Type consistency:** `XeroTokenSet` (Task 4) is consumed by `saveConnection` (Task 5). `TenantContextService.clientId` (Task 1) is used by the controller (Task 5). `EncryptionService.encrypt/decrypt` (Task 2) used by `XeroConnectionService` (Task 5). `XeroConnection` fields (Task 3: `clientId`, `xeroTenantId`, `accessTokenEnc`, `refreshTokenEnc`, `expiresAt`) match the upsert in Task 5. Consistent.
 
 **Deferred to Plan 3:** invoice/aging models, contacts→debtors mapping, scheduled poll sync, Xero webhook receiver (signature verify with `XERO_WEBHOOK_KEY`, intent-to-receive), and automatic token refresh on expiry during API calls.
+
+---
+
+## Final-review correction (as built)
+
+The plan's original Task 5/6 assumed the Clerk **session cookie** would authenticate the
+browser-facing OAuth routes under the global Bearer guard. That was wrong — the guard is
+Bearer-only, and `/connect` (a link) + `/callback` (Xero's third-party redirect) are
+browser navigations. Corrected to the standard SPA-OAuth pattern (commit `78e6056`):
+
+- **`/connect`** stays Bearer-guarded but returns JSON `{ authorizeUrl }`; the console
+  fetches it with the Clerk token, then `window.location = authorizeUrl`.
+- **`/callback`** is `@Public()` (no user session on Xero's redirect). The client identity
+  travels in `state = EncryptionService.encrypt(clientId)` — AES-256-GCM makes the state
+  **tamper-proof** (a forged state fails the auth tag → treated as error). The old
+  state-vs-session 403 check was removed (no session on the callback).
+- Callback handles declined consent / missing `code` / decrypt failure / empty orgs by
+  redirecting to `${UI_URL}/connections?xero=error`.
+- Jest `setupFiles` (`api/test/jest-setup-env.ts`) provides a test `ENCRYPTION_KEY` so the
+  full-AppModule e2e boots deterministically.
+
+**Carried forward to Plan 3 (security hardening):** bind `state` to the initiating session
+and add a nonce + short TTL (the stateless callback is a classic OAuth-CSRF surface); wrap
+the console `loadStatus()` fetch in try/catch.

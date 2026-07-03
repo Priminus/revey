@@ -9,12 +9,13 @@ datasource db {
 }
 
 model Client {
-  id         String   @id @default(uuid())
-  name       String
-  clerkOrgId String   @unique @map("clerk_org_id")
+  id          String   @id @default(uuid())
+  name        String
+  clerkUserId String   @unique @map("clerk_user_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   debtors    Debtor[]
+  xeroConnection XeroConnection?
 
   @@map("clients")
 }
@@ -28,4 +29,18 @@ model Debtor {
 
   @@index([clientId])
   @@map("debtors")
+}
+
+model XeroConnection {
+  id              String   @id @default(uuid())
+  clientId        String   @unique @map("client_id")
+  xeroTenantId    String   @map("xero_tenant_id")
+  accessTokenEnc  String   @map("access_token_enc")
+  refreshTokenEnc String   @map("refresh_token_enc")
+  expiresAt       DateTime @map("expires_at")
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("xero_connections")
 }

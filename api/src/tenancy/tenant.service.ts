@@ -8,14 +8,11 @@ export class TenantService {
   constructor(private readonly prisma: PrismaService) {}
 
   async resolveClientId(auth: AuthContext): Promise<string> {
-    if (!auth.clerkOrgId) {
-      throw new ForbiddenException('No active organization');
-    }
     const client = await this.prisma.client.findUnique({
-      where: { clerkOrgId: auth.clerkOrgId },
+      where: { clerkUserId: auth.userId },
     });
     if (!client) {
-      throw new ForbiddenException('Organization is not a Revey client');
+      throw new ForbiddenException('User is not linked to a Revey client');
     }
     return client.id;
   }

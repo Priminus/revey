@@ -4,7 +4,9 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthContext } from './auth-context';
+import { IS_PUBLIC_KEY } from '../health/health.public.decorator';
 
 export interface TokenVerifier {
   verify(token: string): Promise<{
@@ -19,9 +21,17 @@ export const TOKEN_VERIFIER = 'TOKEN_VERIFIER';
 
 @Injectable()
 export class ClerkGuard implements CanActivate {
-  constructor(private readonly verifier: TokenVerifier) {}
+  constructor(
+    private readonly verifier: TokenVerifier,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      IS_PUBLIC_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (isPublic) return true;
     const request = context.switchToHttp().getRequest<{
       headers: Record<string, string>;
       auth?: AuthContext;
