@@ -28,5 +28,8 @@ export async function apiFetch<T>(
   if (!res.ok) {
     throw new Error(`API ${path} failed: ${res.status}`);
   }
-  return (await res.json()) as T;
+  // Void endpoints (customize/reset/save-steps/delete) return an empty body;
+  // calling res.json() on that throws, so read text and only parse if present.
+  const text = await res.text();
+  return (text ? (JSON.parse(text) as T) : (undefined as T));
 }

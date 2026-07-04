@@ -33,13 +33,18 @@ function WorkflowContent(): ReactElement {
           <p className="text-sm text-paid-deep">
             Inheriting the global flow. Customize it to set steps specific to this client.
           </p>
-          <Button
-            variant="secondary"
-            onClick={() => customizeFlow.mutate()}
-            disabled={customizeFlow.isPending}
-          >
-            {customizeFlow.isPending ? 'Customizing…' : 'Customize'}
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              variant="secondary"
+              onClick={() => customizeFlow.mutate()}
+              disabled={customizeFlow.isPending}
+            >
+              {customizeFlow.isPending ? 'Customizing…' : 'Customize'}
+            </Button>
+            {customizeFlow.error && (
+              <p className="text-xs text-danger">Could not customize. Try again.</p>
+            )}
+          </div>
         </div>
       )}
 
