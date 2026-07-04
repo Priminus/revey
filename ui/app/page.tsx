@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { AgingChart } from '@/components/aging-chart';
 import { AppShell } from '@/components/app-shell';
@@ -108,11 +108,39 @@ function DebtorsTable(): ReactElement {
   );
 }
 
+function OnboardingBanner(): ReactElement | null {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setShow(window.localStorage.getItem('revey.onboarded') !== 'true');
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div className="mb-6 flex items-center justify-between gap-4 rounded-[14px] border border-line bg-paid-tint px-4 py-3">
+      <Link href="/onboarding" className="text-sm font-medium text-paid-deep hover:underline">
+        Finish setting up Revey →
+      </Link>
+      <button
+        type="button"
+        onClick={() => setShow(false)}
+        aria-label="Dismiss"
+        className="text-muted transition-colors duration-200 hover:text-ink"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function Dashboard(): ReactElement {
   const { data: summary } = useArSummary();
 
   return (
     <AppShell>
+      <OnboardingBanner />
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-[1.75rem] font-semibold">Dashboard</h1>

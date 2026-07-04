@@ -14,6 +14,7 @@ interface NavItem {
 // Client-scoped — dashboard (which shows the debtors table), approvals,
 // connections, and this client's workflow.
 const WORKSPACE_NAV: NavItem[] = [
+  { label: 'Onboarding', href: '/onboarding' },
   { label: 'Dashboard', href: '/' },
   { label: 'Vendors', href: '/vendors' },
   { label: 'Approvals', href: '/approvals' },
