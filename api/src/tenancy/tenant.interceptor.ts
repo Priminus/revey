@@ -20,11 +20,20 @@ export class TenantInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler,
   ): Promise<Observable<unknown>> {
-    const request = context
-      .switchToHttp()
-      .getRequest<{ auth?: AuthContext; clientId?: string }>();
+    const request = context.switchToHttp().getRequest<{
+      auth?: AuthContext;
+      clientId?: string;
+      headers?: Record<string, string | string[] | undefined>;
+    }>();
     if (request.auth) {
-      request.clientId = await this.tenantService.resolveClientId(request.auth);
+      const headerClientId = request.headers?.['x-client-id'];
+      const requestedClientId = Array.isArray(headerClientId)
+        ? headerClientId[0]
+        : headerClientId;
+      request.clientId = await this.tenantService.resolveClientIdFor(
+        request.auth,
+        requestedClientId,
+      );
     }
     return next.handle();
   }
