@@ -1,15 +1,30 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+
+export const NODE_TYPES = ['reminder', 'wait', 'condition', 'escalate'] as const;
+export type NodeType = (typeof NODE_TYPES)[number];
 
 export interface StepView {
   id: string;
   offsetDays: number;
   order: number;
-  templateId: string;
-  templateName: string;
+  templateId: string | null;
+  templateName: string | null;
   requireApproval: boolean;
+  type: string;
+  config: Record<string, unknown> | null;
 }
 export type FlowScope = 'global' | 'client';
+
+export interface ReplaceStepInput {
+  offsetDays: number;
+  templateId?: string | null;
+  order: number;
+  requireApproval?: boolean;
+  type?: string;
+  config?: Record<string, unknown> | null;
+}
 
 export function selectStepFor(
   oldestDaysOverdue: number,
@@ -41,9 +56,18 @@ export class FlowService {
     return this.prisma.reminderFlow.findUnique({ where: { clientId } });
   }
 
-  private toStepViews(steps: { id: string; offsetDays: number; order: number; requireApproval: boolean; template: { id: string; name: string } }[]): StepView[] {
+  private toStepViews(steps: { id: string; offsetDays: number; order: number; requireApproval: boolean; type: string; config: Prisma.JsonValue | null; template: { id: string; name: string } | null }[]): StepView[] {
     return steps
-      .map((s) => ({ id: s.id, offsetDays: s.offsetDays, order: s.order, templateId: s.template.id, templateName: s.template.name, requireApproval: s.requireApproval }))
+      .map((s) => ({
+        id: s.id,
+        offsetDays: s.offsetDays,
+        order: s.order,
+        templateId: s.template ? s.template.id : null,
+        templateName: s.template ? s.template.name : null,
+        requireApproval: s.requireApproval,
+        type: s.type,
+        config: (s.config as Record<string, unknown> | null) ?? null,
+      }))
       .sort((a, b) => a.offsetDays - b.offsetDays);
   }
 
@@ -90,6 +114,8 @@ export class FlowService {
               templateId: s.templateId,
               order: s.order,
               requireApproval: s.requireApproval,
+              type: s.type,
+              config: s.config === null ? Prisma.JsonNull : (s.config as Prisma.InputJsonValue),
             })),
           });
         }
@@ -110,14 +136,16 @@ export class FlowService {
   async replaceSteps(
     clientId: string,
     scope: FlowScope,
-    steps: { offsetDays: number; templateId: string; order: number; requireApproval?: boolean }[],
+    steps: ReplaceStepInput[],
   ): Promise<void> {
     for (const s of steps) {
       if (!Number.isInteger(s.offsetDays)) {
         throw new BadRequestException('Each step offsetDays must be an integer');
       }
-      if (typeof s.templateId !== 'string' || s.templateId.trim().length === 0) {
-        throw new BadRequestException('Each step templateId must be a non-empty string');
+      if (s.templateId !== undefined && s.templateId !== null) {
+        if (typeof s.templateId !== 'string' || s.templateId.trim().length === 0) {
+          throw new BadRequestException('Each step templateId must be a non-empty string');
+        }
       }
       if (typeof s.order !== 'number' || Number.isNaN(s.order)) {
         throw new BadRequestException('Each step order must be a number');
@@ -125,9 +153,20 @@ export class FlowService {
       if (s.requireApproval !== undefined && typeof s.requireApproval !== 'boolean') {
         throw new BadRequestException('Each step requireApproval must be a boolean');
       }
+      if (s.type !== undefined && !(NODE_TYPES as readonly string[]).includes(s.type)) {
+        throw new BadRequestException(`Each step type must be one of ${NODE_TYPES.join(', ')}`);
+      }
     }
 
-    const templateIds = [...new Set(steps.map((s) => s.templateId))];
+    // Only validate scope for steps that actually reference a template. Non-reminder
+    // nodes (wait/condition/escalate) have no templateId and must not fail this check.
+    const templateIds = [
+      ...new Set(
+        steps
+          .map((s) => s.templateId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      ),
+    ];
     if (templateIds.length > 0) {
       const found = await this.prisma.emailTemplate.findMany({
         where: { id: { in: templateIds }, OR: [{ clientId: null }, { clientId }] },
@@ -153,9 +192,14 @@ export class FlowService {
         data: steps.map((s) => ({
           flowId,
           offsetDays: s.offsetDays,
-          templateId: s.templateId,
+          templateId: s.templateId ?? null,
           order: s.order,
           requireApproval: s.requireApproval ?? true,
+          type: s.type ?? 'reminder',
+          config:
+            s.config === undefined || s.config === null
+              ? Prisma.JsonNull
+              : (s.config as Prisma.InputJsonValue),
         })),
       }),
     ]);

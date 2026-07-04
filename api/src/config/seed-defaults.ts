@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface DefaultTemplate {
@@ -89,6 +90,8 @@ export async function ensureDefaults(prisma: PrismaService): Promise<void> {
             templateId: template.id,
             order: i,
             requireApproval: def.requireApproval,
+            type: 'reminder',
+            config: Prisma.JsonNull,
           },
         });
       }

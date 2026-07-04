@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ClientId } from '../tenancy/client-id.decorator';
 import { TemplateService, TemplateScope } from './template.service';
-import { FlowService, FlowScope, StepView } from './flow.service';
+import { FlowService, FlowScope, StepView, ReplaceStepInput } from './flow.service';
 import { SettingsService } from './settings.service';
 
 function parseScope(raw: unknown): FlowScope {
@@ -71,7 +71,7 @@ export class ConfigController {
   replaceSteps(
     @ClientId() clientId: string,
     @Query('scope') scope: string | undefined,
-    @Body() dto: { steps: { offsetDays: number; templateId: string; order: number; requireApproval?: boolean }[] },
+    @Body() dto: { steps: ReplaceStepInput[] },
   ): Promise<void> {
     return this.flow.replaceSteps(clientId, parseScope(scope), dto.steps);
   }

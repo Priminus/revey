@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LlmService } from '../llm/llm.service';
 import { overdueDays } from '../ar/aging';
-import { FlowService, selectStepFor } from '../config/flow.service';
+import { FlowService, selectStepFor, StepView } from '../config/flow.service';
 import { renderTemplate, buildVars } from '../config/template.service';
 
 const SYSTEM = `You are Revey, an AI collections assistant writing on behalf of a finance
@@ -46,12 +46,18 @@ export class DraftingService {
 
     const { steps } = await this.flowService.resolveForClient(clientId);
 
-    if (steps.length > 0 && invoices.length > 0) {
+    // Only reminder nodes with a template drive drafting today; wait/condition/
+    // escalate nodes are ignored here (their execution is a future scheduler concern).
+    const reminderSteps = steps.filter(
+      (s): s is StepView & { templateId: string } => s.type === 'reminder' && !!s.templateId,
+    );
+
+    if (reminderSteps.length > 0 && invoices.length > 0) {
       const oldestDaysOverdue = Math.max(
         ...invoices.map((i) => overdueDays(i.dueDate, asOf)),
       );
-      const idx = selectStepFor(oldestDaysOverdue, steps);
-      const step = steps[idx];
+      const idx = selectStepFor(oldestDaysOverdue, reminderSteps);
+      const step = reminderSteps[idx];
       const template = await this.prisma.emailTemplate.findFirst({
         where: { id: step.templateId, OR: [{ clientId: null }, { clientId }] },
       });
