@@ -8,7 +8,8 @@ import { AppShell } from '@/components/app-shell';
 import { Badge, type BadgeTone } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
-import { useDebtor, useDraftDebtor, formatCents, scoreBandTone } from '@/lib/api/ar';
+import { useDebtor, formatCents, scoreBandTone } from '@/lib/api/ar';
+import { useRunOutreach } from '@/lib/api/config';
 
 function bucketBadgeTone(bucket: string): BadgeTone {
   switch (bucket) {
@@ -45,7 +46,7 @@ function ScorePanel({
   recommendedAction: string | null;
   scoreRationale: string | null;
 }): ReactElement {
-  const { mutate, isPending, data, error } = useDraftDebtor(debtorId);
+  const { mutate, isPending, data, error } = useRunOutreach();
 
   return (
     <Card className="mt-6">
@@ -53,8 +54,8 @@ function ScorePanel({
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
           Agent score
         </h2>
-        <Button variant="secondary" onClick={() => mutate()} disabled={isPending}>
-          {isPending ? 'Drafting…' : 'Draft outreach'}
+        <Button variant="secondary" onClick={() => mutate(debtorId)} disabled={isPending}>
+          {isPending ? 'Sending…' : 'Send outreach'}
         </Button>
       </div>
 
@@ -90,9 +91,17 @@ function ScorePanel({
         </div>
       )}
 
-      {data && (
+      {data && data.autoSent && data.result?.status === 'sent' && (
+        <p className="mt-4 text-sm text-paid">Sent ✓ (test mode → your inbox)</p>
+      )}
+      {data && data.autoSent && data.result?.status === 'failed' && (
+        <p className="mt-4 text-sm text-danger">
+          {data.result.error ?? 'Send failed — check the connection and try again.'}
+        </p>
+      )}
+      {data && !data.autoSent && (
         <p className="mt-4 text-sm text-paid">
-          Draft created —{' '}
+          Drafted — awaiting approval —{' '}
           <Link href="/approvals" className="font-medium underline hover:text-paid-deep">
             review it in Approvals
           </Link>

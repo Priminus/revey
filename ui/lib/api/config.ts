@@ -4,9 +4,9 @@ import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from './client';
 import { renderPreview, SAMPLE_VARS } from './config-format';
-import type { EffectiveFlow, FlowScope, FlowStep, Template } from './config-format';
+import type { EffectiveFlow, FlowScope, FlowStep, RunResult, Settings, Template } from './config-format';
 
-export type { EffectiveFlow, FlowScope, FlowStep, Template };
+export type { EffectiveFlow, FlowScope, FlowStep, RunResult, Settings, Template };
 export { renderPreview, SAMPLE_VARS };
 
 export function useTemplates() {
@@ -104,5 +104,42 @@ export function useResetFlow() {
     mutationFn: async () =>
       apiFetch<void>('/config/flow', await getToken(), { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['config'] }),
+  });
+}
+
+export function useSettings() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['config', 'settings'],
+    queryFn: async () => apiFetch<Settings>('/config/settings', await getToken()),
+  });
+}
+
+export function useUpdateSettings() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (settings: Settings) =>
+      apiFetch<Settings>('/config/settings', await getToken(), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['config', 'settings'] }),
+  });
+}
+
+export function useRunOutreach() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (debtorId: string) =>
+      apiFetch<RunResult>(`/agent/debtors/${debtorId}/run`, await getToken(), {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ar'] });
+      qc.invalidateQueries({ queryKey: ['agent'] });
+    },
   });
 }

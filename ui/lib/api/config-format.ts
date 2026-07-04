@@ -44,6 +44,19 @@ export function offsetLabel(offsetDays: number): string {
   return `${offsetDays}d overdue`;
 }
 
+export interface Settings {
+  autoSend: boolean;
+}
+
+export interface RunResult {
+  draftId: string;
+  autoSent: boolean;
+  result?: {
+    status: 'sent' | 'failed';
+    error?: string;
+  };
+}
+
 export const SAMPLE_VARS: Record<string, string> = {
   debtor_name: 'Harbour Logistics Pte Ltd',
   outstanding_amount: '$86,150',

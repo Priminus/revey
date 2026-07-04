@@ -30,6 +30,16 @@ jest.mock('../lib/api/ar', () => {
   };
 });
 
+jest.mock('../lib/api/config', () => {
+  const actual = jest.requireActual('../lib/api/config-format');
+  return {
+    ...actual,
+    useSettings: () => ({ data: { autoSend: false }, isLoading: false }),
+    useUpdateSettings: () => ({ mutate: jest.fn(), isPending: false }),
+    useRunOutreach: () => ({ mutate: jest.fn(), isPending: false, data: undefined, error: undefined }),
+  };
+});
+
 describe('Home', () => {
   it('renders the dashboard heading and Sync from Xero button for signed-in users', () => {
     render(<Home />);
@@ -41,5 +51,15 @@ describe('Home', () => {
   it('shows the empty state when there are no debtors', () => {
     render(<Home />);
     expect(screen.getByText(/No AR yet — connect Xero and Sync/)).toBeInTheDocument();
+  });
+
+  it('renders the require-approval toggle with helper text for the current setting', () => {
+    render(<Home />);
+    const toggle = screen.getByRole('switch', { name: 'Require approval before sending' });
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(
+      screen.getByText('Drafts wait in Approvals for a human to send.'),
+    ).toBeInTheDocument();
   });
 });
