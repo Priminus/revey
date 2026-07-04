@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import {
   Background,
   Controls,
@@ -218,6 +218,43 @@ interface FlowCanvasProps {
   readOnly?: boolean;
 }
 
+function toSaveShape(ws: WorkingStep[]): SaveStepsInput[] {
+  return [...ws]
+    .sort((a, b) => a.offsetDays - b.offsetDays)
+    .map((s, index) => ({ offsetDays: s.offsetDays, templateId: s.templateId, order: index }));
+}
+
+function stepsEqual(a: SaveStepsInput[], b: SaveStepsInput[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((x, i) => x.offsetDays === b[i].offsetDays && x.templateId === b[i].templateId);
+}
+
+/**
+ * Count of added/removed/edited steps for the "N unsaved changes" indicator.
+ * Matches by persisted `id` (stable across edits/reorders) rather than array
+ * position, so e.g. removing one step reports 1 change, not a cascade of
+ * positional shifts for every step after it.
+ */
+function countChanges(baselineSteps: WorkingStep[], currentSteps: WorkingStep[]): number {
+  const baseById = new Map(baselineSteps.filter((s) => s.id).map((s) => [s.id as string, s]));
+  const currentIds = new Set(currentSteps.filter((s) => s.id).map((s) => s.id as string));
+  let count = 0;
+  for (const id of baseById.keys()) {
+    if (!currentIds.has(id)) count += 1; // removed
+  }
+  for (const s of currentSteps) {
+    if (!s.id) {
+      count += 1; // newly added (no persisted id yet)
+      continue;
+    }
+    const base = baseById.get(s.id);
+    if (base && (base.offsetDays !== s.offsetDays || base.templateId !== s.templateId)) {
+      count += 1; // edited
+    }
+  }
+  return count;
+}
+
 export function FlowCanvas({
   steps,
   templates,
@@ -226,28 +263,80 @@ export function FlowCanvas({
   readOnly = false,
 }: FlowCanvasProps): ReactElement {
   const [prevSteps, setPrevSteps] = useState<FlowStep[]>(steps);
-  const [localSteps, setLocalSteps] = useState<WorkingStep[]>(() => toWorkingSteps(steps));
+  // History stack of working-step snapshots, enabling undo/redo. The current
+  // working state is always `history[historyIndex]`.
+  const [history, setHistory] = useState<WorkingStep[][]>(() => [toWorkingSteps(steps)]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  // The last-saved baseline (working-step shape, keeps stable ids), used to
+  // compute the dirty state and the change count.
+  const [baselineSteps, setBaselineSteps] = useState<WorkingStep[]>(() => toWorkingSteps(steps));
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const pendingSaveRef = useRef(false);
 
-  // Reset local working state whenever the source-of-truth steps prop
-  // changes identity (e.g. after a fetch, save, customize, or reset).
+  const localSteps = history[historyIndex];
+
+  // Reset local working state + history whenever the source-of-truth steps
+  // prop actually changes identity (e.g. after a fetch, save, customize,
+  // reset, or scope switch) — never on every render.
   if (steps !== prevSteps) {
     setPrevSteps(steps);
-    setLocalSteps(toWorkingSteps(steps));
+    const ws = toWorkingSteps(steps);
+    setHistory([ws]);
+    setHistoryIndex(0);
+    setBaselineSteps(ws);
     setSelectedUid(null);
+    if (pendingSaveRef.current) {
+      pendingSaveRef.current = false;
+      setSavedFlash(true);
+    }
   }
 
+  // Safety net: if a save never resolves into a new `steps` prop (e.g. the
+  // mutation failed), drop the pending flag so a later, unrelated prop
+  // change doesn't get mistaken for a successful save.
+  useEffect(() => {
+    if (saving || !pendingSaveRef.current) return;
+    const t = setTimeout(() => {
+      pendingSaveRef.current = false;
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [saving]);
+
+  useEffect(() => {
+    if (!savedFlash) return;
+    const t = setTimeout(() => setSavedFlash(false), 2000);
+    return () => clearTimeout(t);
+  }, [savedFlash]);
+
   const sorted = useMemo(() => [...localSteps].sort((a, b) => a.offsetDays - b.offsetDays), [localSteps]);
+
+  const saveShape = useMemo(() => toSaveShape(localSteps), [localSteps]);
+  const baselineShape = useMemo(() => toSaveShape(baselineSteps), [baselineSteps]);
+  const dirty = useMemo(() => !stepsEqual(saveShape, baselineShape), [saveShape, baselineShape]);
+  const changeCount = useMemo(
+    () => countChanges(baselineSteps, localSteps),
+    [baselineSteps, localSteps],
+  );
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  // Push a new snapshot onto the history stack, discarding any redo tail.
+  const commit = (next: WorkingStep[]): void => {
+    setHistory((prev) => [...prev.slice(0, historyIndex + 1), next]);
+    setHistoryIndex((i) => i + 1);
+  };
 
   const handleChange = (
     uid: string,
     patch: Partial<Pick<WorkingStep, 'offsetDays' | 'templateId'>>,
   ): void => {
-    setLocalSteps((prev) => prev.map((s) => (s.uid === uid ? { ...s, ...patch } : s)));
+    commit(localSteps.map((s) => (s.uid === uid ? { ...s, ...patch } : s)));
   };
 
   const handleRemove = (uid: string): void => {
-    setLocalSteps((prev) => prev.filter((s) => s.uid !== uid));
+    commit(localSteps.filter((s) => s.uid !== uid));
     setSelectedUid((cur) => (cur === uid ? null : cur));
   };
 
@@ -256,11 +345,26 @@ export function FlowCanvas({
     const offsetDays = localSteps.length ? maxOffset + 7 : 7;
     const templateId = templates[0]?.id ?? '';
     const uid = nextUid();
-    setLocalSteps((prev) => [...prev, { uid, offsetDays, templateId }]);
+    commit([...localSteps, { uid, offsetDays, templateId }]);
     setSelectedUid(uid);
   };
 
+  const handleUndo = (): void => {
+    if (!canUndo) return;
+    setHistoryIndex((i) => i - 1);
+    setSelectedUid(null);
+  };
+
+  const handleRedo = (): void => {
+    if (!canRedo) return;
+    setHistoryIndex((i) => i + 1);
+    setSelectedUid(null);
+  };
+
   const handleSave = (): void => {
+    if (!dirty || saving) return;
+    pendingSaveRef.current = true;
+    setSavedFlash(false);
     onSave(sorted.map((s, index) => ({ offsetDays: s.offsetDays, templateId: s.templateId, order: index })));
   };
 
@@ -323,46 +427,89 @@ export function FlowCanvas({
   const selectedStep = localSteps.find((s) => s.uid === selectedUid) ?? null;
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row">
-      <div className="h-[600px] flex-1 overflow-hidden rounded-[14px] border border-line bg-inset/40">
-        <ReactFlowProvider>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.3 }}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={!readOnly}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background color="#e7e7e5" gap={22} size={1} />
-            <Controls showInteractive={false} />
-          </ReactFlow>
-        </ReactFlowProvider>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="h-[600px] flex-1 overflow-hidden rounded-[14px] border border-line bg-inset/40">
+          <ReactFlowProvider>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              fitView
+              fitViewOptions={{ padding: 0.3 }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              elementsSelectable={!readOnly}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background color="#e7e7e5" gap={22} size={1} />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+          </ReactFlowProvider>
+        </div>
+
+        {!readOnly && (
+          <div className="w-full shrink-0 lg:w-72">
+            <Card>
+              {selectedStep ? (
+                <StepInspector
+                  step={selectedStep}
+                  templates={templates}
+                  onChange={(patch) => handleChange(selectedStep.uid, patch)}
+                  onRemove={() => handleRemove(selectedStep.uid)}
+                />
+              ) : (
+                <p className="text-sm text-muted">Select a step in the canvas to edit it.</p>
+              )}
+            </Card>
+          </div>
+        )}
       </div>
 
       {!readOnly && (
-        <div className="w-full shrink-0 space-y-4 lg:w-72">
-          <Card>
-            {selectedStep ? (
-              <StepInspector
-                step={selectedStep}
-                templates={templates}
-                onChange={(patch) => handleChange(selectedStep.uid, patch)}
-                onRemove={() => handleRemove(selectedStep.uid)}
-              />
-            ) : (
-              <p className="text-sm text-muted">Select a step in the canvas to edit it.</p>
-            )}
-          </Card>
-          <Button variant="secondary" onClick={handleAdd} className="w-full">
-            + Add step
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
+        <div
+          role="toolbar"
+          aria-label="Workflow editor actions"
+          className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-line bg-paper px-4 py-3 shadow-[0_-4px_16px_rgba(10,10,10,0.04)]"
+        >
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              aria-label="Undo"
+              title="Undo"
+            >
+              ↶ Undo
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              aria-label="Redo"
+              title="Redo"
+            >
+              ↷ Redo
+            </Button>
+            <Button variant="secondary" onClick={handleAdd}>
+              + Add step
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {savedFlash ? (
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-paid-deep">
+                ✓ Saved
+              </span>
+            ) : dirty ? (
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-overdue-ink">
+                {changeCount} unsaved change{changeCount === 1 ? '' : 's'}
+              </span>
+            ) : null}
+            <Button onClick={handleSave} disabled={!dirty || saving}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
