@@ -52,14 +52,4 @@ describe('Home', () => {
     render(<Home />);
     expect(screen.getByText(/No AR yet — connect Xero and Sync/)).toBeInTheDocument();
   });
-
-  it('renders the require-approval toggle with helper text for the current setting', () => {
-    render(<Home />);
-    const toggle = screen.getByRole('switch', { name: 'Require approval before sending' });
-    expect(toggle).toBeInTheDocument();
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    expect(
-      screen.getByText('Drafts wait in Approvals for a human to send.'),
-    ).toBeInTheDocument();
-  });
 });

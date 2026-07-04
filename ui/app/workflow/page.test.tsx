@@ -35,6 +35,8 @@ jest.mock('../../lib/api/config', () => {
     useSaveSteps: () => ({ mutate: saveStepsMutate, isPending: false }),
     useCustomizeFlow: () => ({ mutate: customizeMutate, isPending: false }),
     useResetFlow: () => ({ mutate: resetMutate, isPending: false }),
+    useSettings: () => ({ data: { autoSend: false }, isLoading: false }),
+    useUpdateSettings: () => ({ mutate: jest.fn(), isPending: false }),
   };
 });
 
@@ -50,6 +52,9 @@ describe('WorkflowPage', () => {
 
     render(<WorkflowPage />);
     expect(screen.getByRole('heading', { name: 'Workflow' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('switch', { name: 'Require approval before sending' }),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Global')).not.toBeInTheDocument();
     expect(screen.queryByText('This client')).not.toBeInTheDocument();
   });

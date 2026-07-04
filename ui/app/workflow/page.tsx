@@ -3,6 +3,7 @@
 import type { ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { AppShell } from '@/components/app-shell';
+import { ApprovalToggle } from '@/components/approval-toggle';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
 import { FlowCanvas } from '@/components/flow-canvas';
@@ -21,11 +22,14 @@ function WorkflowContent(): ReactElement {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="mb-1 text-[1.75rem] font-semibold">Workflow</h1>
-        <p className="text-sm text-muted">
-          Reminder steps flow from the invoice due date to a human approval before every send.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="mb-1 text-[1.75rem] font-semibold">Workflow</h1>
+          <p className="text-sm text-muted">
+            Reminder steps flow from the invoice due date to a human approval before every send.
+          </p>
+        </div>
+        <ApprovalToggle />
       </div>
 
       {inheriting && (
