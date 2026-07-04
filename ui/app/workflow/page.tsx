@@ -5,7 +5,7 @@ import { useState, type ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
-import { FlowTimeline } from '@/components/flow-timeline';
+import { FlowCanvas } from '@/components/flow-canvas';
 import {
   useCustomizeFlow,
   useFlow,
@@ -58,7 +58,7 @@ function WorkflowContent(): ReactElement {
         <div>
           <h1 className="mb-1 text-[1.75rem] font-semibold">Workflow</h1>
           <p className="text-sm text-muted">
-            Drag reminder steps to reorder them around the invoice due date.
+            Reminder steps flow from the invoice due date to a human approval before every send.
           </p>
         </div>
         <ScopeSwitch scope={scope} onChange={setScope} />
@@ -97,7 +97,7 @@ function WorkflowContent(): ReactElement {
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <FlowTimeline
+          <FlowCanvas
             steps={flow?.steps ?? []}
             templates={templates ?? []}
             onSave={saveSteps.mutate}
