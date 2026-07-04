@@ -52,9 +52,10 @@ describe('WorkflowPage', () => {
 
     render(<WorkflowPage />);
     expect(screen.getByRole('heading', { name: 'Workflow' })).toBeInTheDocument();
+    // Approval is now per reminder node, not a page-level toggle.
     expect(
-      screen.getByRole('switch', { name: 'Require approval before sending' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('switch', { name: 'Require approval before sending' }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('Global')).not.toBeInTheDocument();
     expect(screen.queryByText('This client')).not.toBeInTheDocument();
   });

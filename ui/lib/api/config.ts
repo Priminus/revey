@@ -4,9 +4,27 @@ import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from './client';
 import { renderPreview, SAMPLE_VARS } from './config-format';
-import type { EffectiveFlow, FlowScope, FlowStep, RunResult, Settings, Template } from './config-format';
+import type {
+  EffectiveFlow,
+  FlowScope,
+  FlowStep,
+  NodeType,
+  RunResult,
+  SaveStepsInput,
+  Settings,
+  Template,
+} from './config-format';
 
-export type { EffectiveFlow, FlowScope, FlowStep, RunResult, Settings, Template };
+export type {
+  EffectiveFlow,
+  FlowScope,
+  FlowStep,
+  NodeType,
+  RunResult,
+  SaveStepsInput,
+  Settings,
+  Template,
+};
 export { renderPreview, SAMPLE_VARS };
 
 export function useTemplates() {
@@ -65,12 +83,6 @@ export function useFlow(scope: FlowScope) {
     queryFn: async () =>
       apiFetch<EffectiveFlow>(`/config/flow?scope=${scope}`, await getToken()),
   });
-}
-
-export interface SaveStepsInput {
-  offsetDays: number;
-  templateId: string;
-  order: number;
 }
 
 export function useSaveSteps(scope: FlowScope) {

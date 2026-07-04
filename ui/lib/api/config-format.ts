@@ -12,12 +12,28 @@ export interface Template {
   scope: FlowScope;
 }
 
+/** A flow step is a typed node in the Zapier-style workflow editor. */
+export type NodeType = 'reminder' | 'wait' | 'condition' | 'escalate';
+
 export interface FlowStep {
   id?: string;
   offsetDays: number;
   order: number;
-  templateId: string;
-  templateName?: string;
+  templateId: string | null;
+  templateName?: string | null;
+  requireApproval: boolean;
+  type: NodeType;
+  config: Record<string, unknown> | null;
+}
+
+/** Payload shape for persisting steps via `useSaveSteps`. */
+export interface SaveStepsInput {
+  offsetDays: number;
+  templateId: string | null;
+  order: number;
+  requireApproval: boolean;
+  type: NodeType;
+  config: Record<string, unknown> | null;
 }
 
 export interface EffectiveFlow {
@@ -42,6 +58,22 @@ export function offsetLabel(offsetDays: number): string {
   if (offsetDays < 0) return `${Math.abs(offsetDays)}d before due`;
   if (offsetDays === 0) return 'Due day';
   return `${offsetDays}d overdue`;
+}
+
+/** Human-readable label for a node type. */
+export function nodeTypeLabel(type: NodeType): string {
+  switch (type) {
+    case 'reminder':
+      return 'Reminder';
+    case 'wait':
+      return 'Wait';
+    case 'condition':
+      return 'Condition';
+    case 'escalate':
+      return 'Escalate';
+    default:
+      return type;
+  }
 }
 
 export interface Settings {
