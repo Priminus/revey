@@ -7,7 +7,7 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: process.env.UI_URL ?? 'http://localhost:3000',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'X-Client-Id'],
   });
   await app.listen(process.env.PORT ?? 3001);
 }
