@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
+import { AppShell } from '@/components/app-shell';
 import { Badge, type BadgeTone } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -138,33 +139,8 @@ function DebtorDetail(): ReactElement {
   const { data: debtor, isLoading } = useDebtor(id);
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="border-b border-line bg-paper">
-        <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-8">
-            <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
-            <nav className="flex items-center gap-5 text-sm font-medium text-muted">
-              <Link href="/" className="transition-colors duration-200 hover:text-ink">
-                Dashboard
-              </Link>
-              <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
-                Connections
-              </Link>
-              <Link href="/approvals" className="transition-colors duration-200 hover:text-ink">
-                Approvals
-              </Link>
-              <Link href="/templates" className="transition-colors duration-200 hover:text-ink">
-                Templates
-              </Link>
-              <Link href="/workflow" className="transition-colors duration-200 hover:text-ink">
-                Workflow
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-4xl px-6 py-8">
+    <AppShell>
+      <div className="mx-auto max-w-4xl">
         <Link
           href="/"
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-muted transition-colors duration-200 hover:text-paid"
@@ -242,7 +218,7 @@ function DebtorDetail(): ReactElement {
           </>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
 

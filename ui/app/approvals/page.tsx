@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, type ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
+import { AppShell } from '@/components/app-shell';
 import { Badge } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -147,40 +148,13 @@ export default function ApprovalsPage(): ReactElement {
   return (
     <>
       <SignedIn>
-        <div className="min-h-screen bg-paper text-ink">
-          <header className="border-b border-line bg-paper">
-            <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
-              <div className="flex items-center gap-8">
-                <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
-                <nav className="flex items-center gap-5 text-sm font-medium text-muted">
-                  <Link href="/" className="transition-colors duration-200 hover:text-ink">
-                    Dashboard
-                  </Link>
-                  <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
-                    Connections
-                  </Link>
-                  <Link href="/approvals" className="text-ink">
-                    Approvals
-                  </Link>
-                  <Link href="/templates" className="transition-colors duration-200 hover:text-ink">
-                    Templates
-                  </Link>
-                  <Link href="/workflow" className="transition-colors duration-200 hover:text-ink">
-                    Workflow
-                  </Link>
-                </nav>
-              </div>
-            </div>
-          </header>
-
-          <main className="mx-auto max-w-(--maxw) px-6 py-8">
-            <h1 className="mb-1 text-[1.75rem] font-semibold">Approvals</h1>
-            <p className="mb-6 text-sm text-muted">
-              Review and send AI-drafted outreach. Nothing goes out without your approval.
-            </p>
-            <DraftsList />
-          </main>
-        </div>
+        <AppShell>
+          <h1 className="mb-1 text-[1.75rem] font-semibold">Approvals</h1>
+          <p className="mb-6 text-sm text-muted">
+            Review and send AI-drafted outreach. Nothing goes out without your approval.
+          </p>
+          <DraftsList />
+        </AppShell>
       </SignedIn>
       <SignedOut>
         <RedirectToSignIn />

@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useState, type ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
+import { AppShell } from '@/components/app-shell';
 import { Badge, type BadgeTone } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -123,40 +123,13 @@ export default function TemplatesPage(): ReactElement {
   return (
     <>
       <SignedIn>
-        <div className="min-h-screen bg-paper text-ink">
-          <header className="border-b border-line bg-paper">
-            <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
-              <div className="flex items-center gap-8">
-                <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
-                <nav className="flex items-center gap-5 text-sm font-medium text-muted">
-                  <Link href="/" className="transition-colors duration-200 hover:text-ink">
-                    Dashboard
-                  </Link>
-                  <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
-                    Connections
-                  </Link>
-                  <Link href="/approvals" className="transition-colors duration-200 hover:text-ink">
-                    Approvals
-                  </Link>
-                  <Link href="/templates" className="text-ink">
-                    Templates
-                  </Link>
-                  <Link href="/workflow" className="transition-colors duration-200 hover:text-ink">
-                    Workflow
-                  </Link>
-                </nav>
-              </div>
-            </div>
-          </header>
-
-          <main className="mx-auto max-w-(--maxw) px-6 py-8">
-            <h1 className="mb-1 text-[1.75rem] font-semibold">Templates</h1>
-            <p className="mb-6 text-sm text-muted">
-              Reusable email templates for reminder steps, with live preview against sample data.
-            </p>
-            <TemplatesContent />
-          </main>
-        </div>
+        <AppShell>
+          <h1 className="mb-1 text-[1.75rem] font-semibold">Templates</h1>
+          <p className="mb-6 text-sm text-muted">
+            Reusable email templates for reminder steps, with live preview against sample data.
+          </p>
+          <TemplatesContent />
+        </AppShell>
       </SignedIn>
       <SignedOut>
         <RedirectToSignIn />

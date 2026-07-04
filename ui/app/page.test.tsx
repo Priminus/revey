@@ -7,6 +7,18 @@ jest.mock('@clerk/nextjs', () => ({
   RedirectToSignIn: () => null,
 }));
 
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/',
+}));
+
+jest.mock('../lib/api/clients', () => ({
+  useClients: () => ({ data: [{ id: 'c1', name: 'Test Co' }], isLoading: false }),
+}));
+
+jest.mock('../lib/client-context', () => ({
+  useActiveClient: () => ({ activeClientId: 'c1', setActiveClientId: jest.fn() }),
+}));
+
 jest.mock('../lib/api/ar', () => {
   const actual = jest.requireActual('../lib/api/ar-format');
   return {

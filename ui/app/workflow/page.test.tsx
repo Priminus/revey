@@ -8,6 +8,18 @@ jest.mock('@clerk/nextjs', () => ({
   RedirectToSignIn: () => null,
 }));
 
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/workflow',
+}));
+
+jest.mock('../../lib/api/clients', () => ({
+  useClients: () => ({ data: [{ id: 'c1', name: 'Test Co' }], isLoading: false }),
+}));
+
+jest.mock('../../lib/client-context', () => ({
+  useActiveClient: () => ({ activeClientId: 'c1', setActiveClientId: jest.fn() }),
+}));
+
 const useFlowMock = jest.fn();
 const useTemplatesMock = jest.fn();
 const saveStepsMutate = jest.fn();
@@ -26,19 +38,41 @@ jest.mock('../../lib/api/config', () => {
   };
 });
 
-const flow: EffectiveFlow = { flowId: 'g', isOverride: false, steps: [] };
 const templates: Template[] = [];
 
 describe('WorkflowPage', () => {
-  beforeEach(() => {
-    useFlowMock.mockReturnValue({ data: flow, isLoading: false });
+  it('renders a Workflow heading without a global/client scope switch', () => {
+    useFlowMock.mockReturnValue({
+      data: { flowId: 'g', isOverride: false, steps: [] } satisfies EffectiveFlow,
+      isLoading: false,
+    });
     useTemplatesMock.mockReturnValue({ data: templates, isLoading: false });
-  });
 
-  it('renders a Workflow heading and the scope switch', () => {
     render(<WorkflowPage />);
     expect(screen.getByRole('heading', { name: 'Workflow' })).toBeInTheDocument();
-    expect(screen.getByText('Global')).toBeInTheDocument();
-    expect(screen.getByText('This client')).toBeInTheDocument();
+    expect(screen.queryByText('Global')).not.toBeInTheDocument();
+    expect(screen.queryByText('This client')).not.toBeInTheDocument();
+  });
+
+  it('shows a Customize action when the client is inheriting the global flow', () => {
+    useFlowMock.mockReturnValue({
+      data: { flowId: 'g', isOverride: false, steps: [] } satisfies EffectiveFlow,
+      isLoading: false,
+    });
+    useTemplatesMock.mockReturnValue({ data: templates, isLoading: false });
+
+    render(<WorkflowPage />);
+    expect(screen.getByRole('button', { name: 'Customize' })).toBeInTheDocument();
+  });
+
+  it('shows a Reset to global action once the client has its own override', () => {
+    useFlowMock.mockReturnValue({
+      data: { flowId: 'c', isOverride: true, steps: [] } satisfies EffectiveFlow,
+      isLoading: false,
+    });
+    useTemplatesMock.mockReturnValue({ data: templates, isLoading: false });
+
+    render(<WorkflowPage />);
+    expect(screen.getByRole('button', { name: 'Reset to global' })).toBeInTheDocument();
   });
 });

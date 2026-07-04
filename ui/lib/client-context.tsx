@@ -1,0 +1,74 @@
+'use client';
+
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+import { setActiveClientHeader } from './api/client';
+import { useClients } from './api/clients';
+
+const STORAGE_KEY = 'revey.activeClientId';
+
+interface ClientContextValue {
+  activeClientId: string | null;
+  setActiveClientId: (id: string) => void;
+}
+
+const ClientContext = createContext<ClientContextValue | null>(null);
+
+function readStoredClientId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(STORAGE_KEY);
+}
+
+/**
+ * Owns which client is "active" across the app (dashboard, debtors,
+ * approvals, that client's workflow all follow it). Persists the selection
+ * to localStorage and pushes it down to `apiFetch` via
+ * `setActiveClientHeader` so every request carries `X-Client-Id`. Whenever
+ * the active client changes, invalidates all React Query caches so
+ * client-scoped data refetches under the new client.
+ */
+export function ClientProvider({ children }: { children: ReactNode }): ReactElement {
+  const queryClient = useQueryClient();
+  const { data: clients } = useClients();
+  const [activeClientId, setActiveClientIdState] = useState<string | null>(readStoredClientId);
+
+  // Default to the first client returned once loaded, if nothing was
+  // stored/selected yet.
+  useEffect(() => {
+    if (activeClientId || !clients || clients.length === 0) return;
+    setActiveClientIdState(clients[0].id);
+  }, [clients, activeClientId]);
+
+  useEffect(() => {
+    setActiveClientHeader(activeClientId);
+    if (activeClientId && typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, activeClientId);
+    }
+    void queryClient.invalidateQueries();
+  }, [activeClientId, queryClient]);
+
+  const setActiveClientId = (id: string): void => {
+    setActiveClientIdState(id);
+  };
+
+  return (
+    <ClientContext.Provider value={{ activeClientId, setActiveClientId }}>
+      {children}
+    </ClientContext.Provider>
+  );
+}
+
+export function useActiveClient(): ClientContextValue {
+  const ctx = useContext(ClientContext);
+  if (!ctx) {
+    throw new Error('useActiveClient must be used within a ClientProvider');
+  }
+  return ctx;
+}

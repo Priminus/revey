@@ -1,11 +1,23 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import TemplatesPage from './page';
-import type { Template } from '../../lib/api/config-format';
+import type { Template } from '../../../lib/api/config-format';
 
 jest.mock('@clerk/nextjs', () => ({
   SignedIn: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SignedOut: () => null,
   RedirectToSignIn: () => null,
+}));
+
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/settings/templates',
+}));
+
+jest.mock('../../../lib/api/clients', () => ({
+  useClients: () => ({ data: [{ id: 'c1', name: 'Test Co' }], isLoading: false }),
+}));
+
+jest.mock('../../../lib/client-context', () => ({
+  useActiveClient: () => ({ activeClientId: 'c1', setActiveClientId: jest.fn() }),
 }));
 
 const templates: Template[] = [
@@ -29,8 +41,8 @@ const useTemplatesMock = jest.fn();
 const saveMutate = jest.fn();
 const deleteMutate = jest.fn();
 
-jest.mock('../../lib/api/config', () => {
-  const actual = jest.requireActual('../../lib/api/config-format');
+jest.mock('../../../lib/api/config', () => {
+  const actual = jest.requireActual('../../../lib/api/config-format');
   return {
     ...actual,
     useTemplates: () => useTemplatesMock(),
@@ -39,7 +51,7 @@ jest.mock('../../lib/api/config', () => {
   };
 });
 
-describe('TemplatesPage', () => {
+describe('TemplatesPage (settings)', () => {
   beforeEach(() => {
     useTemplatesMock.mockReturnValue({ data: templates, isLoading: false });
   });

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactElement } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/nextjs';
 import { AgingChart } from '@/components/aging-chart';
+import { AppShell } from '@/components/app-shell';
 import { Badge, type BadgeTone } from '@/components/badge';
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
@@ -131,77 +132,50 @@ function Dashboard(): ReactElement {
   const { data: summary } = useArSummary();
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="border-b border-line bg-paper">
-        <div className="mx-auto flex max-w-(--maxw) items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-8">
-            <span className="font-display text-lg font-semibold tracking-[-0.01em]">Revey</span>
-            <nav className="flex items-center gap-5 text-sm font-medium text-muted">
-              <Link href="/" className="text-ink">
-                Dashboard
-              </Link>
-              <Link href="/connections" className="transition-colors duration-200 hover:text-ink">
-                Connections
-              </Link>
-              <Link href="/approvals" className="transition-colors duration-200 hover:text-ink">
-                Approvals
-              </Link>
-              <Link href="/templates" className="transition-colors duration-200 hover:text-ink">
-                Templates
-              </Link>
-              <Link href="/workflow" className="transition-colors duration-200 hover:text-ink">
-                Workflow
-              </Link>
-            </nav>
-          </div>
+    <AppShell>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[1.75rem] font-semibold">Dashboard</h1>
+          <p className="mt-1 text-sm text-muted">
+            Accounts receivable, aging, and outreach at a glance.
+          </p>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-(--maxw) px-6 py-8">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[1.75rem] font-semibold">Dashboard</h1>
-            <p className="mt-1 text-sm text-muted">
-              Accounts receivable, aging, and outreach at a glance.
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <ScoreAllButton />
-            <SyncButton />
-          </div>
+        <div className="flex items-start gap-3">
+          <ScoreAllButton />
+          <SyncButton />
         </div>
+      </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <KpiTile
-            label="Total outstanding"
-            value={summary ? formatCents(summary.totalOutstandingCents) : '—'}
-          />
-          <KpiTile
-            label="Overdue"
-            value={summary ? formatCents(summary.overdueCents) : '—'}
-            tone="warning"
-          />
-          <KpiTile label="Debtors" value={summary ? String(summary.debtorCount) : '—'} />
-          <KpiTile
-            label="Open invoices"
-            value={summary ? String(summary.openInvoiceCount) : '—'}
-          />
-        </div>
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <KpiTile
+          label="Total outstanding"
+          value={summary ? formatCents(summary.totalOutstandingCents) : '—'}
+        />
+        <KpiTile
+          label="Overdue"
+          value={summary ? formatCents(summary.overdueCents) : '—'}
+          tone="warning"
+        />
+        <KpiTile label="Debtors" value={summary ? String(summary.debtorCount) : '—'} />
+        <KpiTile
+          label="Open invoices"
+          value={summary ? String(summary.openInvoiceCount) : '—'}
+        />
+      </div>
 
-        {summary && (
-          <Card className="mb-6">
-            <AgingChart aging={summary.aging} />
-          </Card>
-        )}
-
-        <Card>
-          <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
-            Debtors
-          </h2>
-          <DebtorsTable />
+      {summary && (
+        <Card className="mb-6">
+          <AgingChart aging={summary.aging} />
         </Card>
-      </main>
-    </div>
+      )}
+
+      <Card>
+        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+          Debtors
+        </h2>
+        <DebtorsTable />
+      </Card>
+    </AppShell>
   );
 }
 

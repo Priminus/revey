@@ -10,6 +10,15 @@ jest.mock('@clerk/nextjs', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/connections',
+}));
+
+jest.mock('../../lib/api/clients', () => ({
+  useClients: () => ({ data: [{ id: 'c1', name: 'Test Co' }], isLoading: false }),
+}));
+
+jest.mock('../../lib/client-context', () => ({
+  useActiveClient: () => ({ activeClientId: 'c1', setActiveClientId: jest.fn() }),
 }));
 
 beforeEach(() => {
