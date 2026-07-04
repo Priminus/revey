@@ -71,7 +71,7 @@ export class ConfigController {
   replaceSteps(
     @ClientId() clientId: string,
     @Query('scope') scope: string | undefined,
-    @Body() dto: { steps: { offsetDays: number; templateId: string; order: number }[] },
+    @Body() dto: { steps: { offsetDays: number; templateId: string; order: number; requireApproval?: boolean }[] },
   ): Promise<void> {
     return this.flow.replaceSteps(clientId, parseScope(scope), dto.steps);
   }

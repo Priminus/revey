@@ -4,19 +4,16 @@ describe('AgentController.run', () => {
   const scoring = {};
   const drafting = { draftForDebtor: jest.fn() };
   const approvals = { approveAndSend: jest.fn() };
-  const prisma = { client: { findUnique: jest.fn() } };
   const controller = new AgentController(
     scoring as never,
     drafting as never,
     approvals as never,
-    prisma as never,
   );
 
   afterEach(() => jest.clearAllMocks());
 
-  it('drafts and does not auto-send when the client has autoSend=false', async () => {
-    drafting.draftForDebtor.mockResolvedValue({ id: 'draft1' });
-    prisma.client.findUnique.mockResolvedValue({ autoSend: false });
+  it('drafts and does not auto-send when the step requires approval', async () => {
+    drafting.draftForDebtor.mockResolvedValue({ id: 'draft1', requireApproval: true });
 
     const result = await controller.run('c1', 'd1');
 
@@ -25,9 +22,8 @@ describe('AgentController.run', () => {
     expect(result).toEqual({ draftId: 'draft1', autoSent: false });
   });
 
-  it('drafts then auto-sends when the client has autoSend=true', async () => {
-    drafting.draftForDebtor.mockResolvedValue({ id: 'draft2' });
-    prisma.client.findUnique.mockResolvedValue({ autoSend: true });
+  it('drafts then auto-sends when the step does not require approval', async () => {
+    drafting.draftForDebtor.mockResolvedValue({ id: 'draft2', requireApproval: false });
     approvals.approveAndSend.mockResolvedValue({ status: 'sent' });
 
     const result = await controller.run('c1', 'd2');
@@ -37,15 +33,11 @@ describe('AgentController.run', () => {
     expect(result).toEqual({ draftId: 'draft2', autoSent: true, result: { status: 'sent' } });
   });
 
-  it('drafts before checking autoSend (call order)', async () => {
+  it('drafts before sending (call order)', async () => {
     const calls: string[] = [];
     drafting.draftForDebtor.mockImplementation(async () => {
       calls.push('draft');
-      return { id: 'draft3' };
-    });
-    prisma.client.findUnique.mockImplementation(async () => {
-      calls.push('read-settings');
-      return { autoSend: true };
+      return { id: 'draft3', requireApproval: false };
     });
     approvals.approveAndSend.mockImplementation(async () => {
       calls.push('approve');
@@ -54,6 +46,6 @@ describe('AgentController.run', () => {
 
     await controller.run('c1', 'd3');
 
-    expect(calls).toEqual(['draft', 'read-settings', 'approve']);
+    expect(calls).toEqual(['draft', 'approve']);
   });
 });

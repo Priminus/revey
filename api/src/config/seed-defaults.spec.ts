@@ -58,7 +58,20 @@ describe('ensureDefaults', () => {
     for (const call of reminderStep.create.mock.calls) {
       expect(call[0].data.flowId).toBe('flow-global');
       expect(typeof call[0].data.templateId).toBe('string');
+      expect(typeof call[0].data.requireApproval).toBe('boolean');
     }
+
+    // Gentle early steps auto-send; firm/final steps need a human.
+    const flagByOffset = new Map<number, boolean>(
+      reminderStep.create.mock.calls.map((call) => [
+        call[0].data.offsetDays,
+        call[0].data.requireApproval,
+      ]),
+    );
+    expect(flagByOffset.get(-7)).toBe(false);
+    expect(flagByOffset.get(1)).toBe(false);
+    expect(flagByOffset.get(14)).toBe(true);
+    expect(flagByOffset.get(30)).toBe(true);
   });
 
   it('is idempotent: does nothing when the global flow already has steps', async () => {

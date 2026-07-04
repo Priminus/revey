@@ -122,11 +122,12 @@ model ReminderFlow {
 }
 
 model ReminderStep {
-  id         String        @id @default(uuid())
-  flowId     String        @map("flow_id")
-  offsetDays Int           @map("offset_days")
-  templateId String        @map("template_id")
-  order      Int
+  id             String        @id @default(uuid())
+  flowId         String        @map("flow_id")
+  offsetDays     Int           @map("offset_days")
+  templateId     String        @map("template_id")
+  order          Int
+  requireApproval Boolean      @default(true) @map("require_approval")
   flow       ReminderFlow  @relation(fields: [flowId], references: [id], onDelete: Cascade)
   template   EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
   createdAt  DateTime      @default(now()) @map("created_at")

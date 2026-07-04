@@ -7,6 +7,7 @@ export interface StepView {
   order: number;
   templateId: string;
   templateName: string;
+  requireApproval: boolean;
 }
 export type FlowScope = 'global' | 'client';
 
@@ -40,9 +41,9 @@ export class FlowService {
     return this.prisma.reminderFlow.findUnique({ where: { clientId } });
   }
 
-  private toStepViews(steps: { id: string; offsetDays: number; order: number; template: { id: string; name: string } }[]): StepView[] {
+  private toStepViews(steps: { id: string; offsetDays: number; order: number; requireApproval: boolean; template: { id: string; name: string } }[]): StepView[] {
     return steps
-      .map((s) => ({ id: s.id, offsetDays: s.offsetDays, order: s.order, templateId: s.template.id, templateName: s.template.name }))
+      .map((s) => ({ id: s.id, offsetDays: s.offsetDays, order: s.order, templateId: s.template.id, templateName: s.template.name, requireApproval: s.requireApproval }))
       .sort((a, b) => a.offsetDays - b.offsetDays);
   }
 
@@ -88,6 +89,7 @@ export class FlowService {
               offsetDays: s.offsetDays,
               templateId: s.templateId,
               order: s.order,
+              requireApproval: s.requireApproval,
             })),
           });
         }
@@ -108,7 +110,7 @@ export class FlowService {
   async replaceSteps(
     clientId: string,
     scope: FlowScope,
-    steps: { offsetDays: number; templateId: string; order: number }[],
+    steps: { offsetDays: number; templateId: string; order: number; requireApproval?: boolean }[],
   ): Promise<void> {
     for (const s of steps) {
       if (!Number.isInteger(s.offsetDays)) {
@@ -119,6 +121,9 @@ export class FlowService {
       }
       if (typeof s.order !== 'number' || Number.isNaN(s.order)) {
         throw new BadRequestException('Each step order must be a number');
+      }
+      if (s.requireApproval !== undefined && typeof s.requireApproval !== 'boolean') {
+        throw new BadRequestException('Each step requireApproval must be a boolean');
       }
     }
 
@@ -150,6 +155,7 @@ export class FlowService {
           offsetDays: s.offsetDays,
           templateId: s.templateId,
           order: s.order,
+          requireApproval: s.requireApproval ?? true,
         })),
       }),
     ]);

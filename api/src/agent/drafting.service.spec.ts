@@ -27,7 +27,7 @@ describe('DraftingService', () => {
       { amountDueCents: 500000, dueDate: new Date('2026-05-01T00:00:00Z'), invoiceNumber: 'INV-1' },
     ]);
     flowService.resolveForClient.mockResolvedValue({
-      steps: [{ id: 's1', offsetDays: 14, order: 2, templateId: 't1', templateName: 'Firm' }],
+      steps: [{ id: 's1', offsetDays: 14, order: 2, templateId: 't1', templateName: 'Firm', requireApproval: true }],
     });
     prisma.emailTemplate.findFirst.mockResolvedValue({
       subject: 'Overdue {{debtor_name}}',
@@ -37,7 +37,7 @@ describe('DraftingService', () => {
     prisma.outreachDraft.create.mockResolvedValue({ id: 'draft1' });
 
     const out = await svc.draftForDebtor('c1', 'd1', new Date('2026-06-01T00:00:00Z'));
-    expect(out).toEqual({ id: 'draft1' });
+    expect(out).toEqual({ id: 'draft1', requireApproval: true });
 
     expect(prisma.emailTemplate.findFirst).toHaveBeenCalledWith({
       where: { id: 't1', OR: [{ clientId: null }, { clientId: 'c1' }] },
@@ -56,6 +56,28 @@ describe('DraftingService', () => {
     expect(llmArg.user).not.toContain('{{outstanding_amount}}');
   });
 
+  it('returns the selected step requireApproval flag (false) on the template path', async () => {
+    prisma.debtor.findFirst.mockResolvedValue({
+      id: 'd1', clientId: 'c1', name: 'Acme', email: 'ar@acme.example',
+      scoreValue: 60, recommendedAction: 'gentle_reminder',
+    });
+    prisma.invoice.findMany.mockResolvedValue([
+      { amountDueCents: 500000, dueDate: new Date('2026-05-01T00:00:00Z'), invoiceNumber: 'INV-1' },
+    ]);
+    flowService.resolveForClient.mockResolvedValue({
+      steps: [{ id: 's1', offsetDays: 1, order: 1, templateId: 't1', templateName: 'Due', requireApproval: false }],
+    });
+    prisma.emailTemplate.findFirst.mockResolvedValue({
+      subject: 'Due {{debtor_name}}',
+      body: 'You owe {{outstanding_amount}}',
+    });
+    llm.completeJson.mockResolvedValue({ subject: 'Due Acme', body: 'You owe $5,000' });
+    prisma.outreachDraft.create.mockResolvedValue({ id: 'draft1' });
+
+    const out = await svc.draftForDebtor('c1', 'd1', new Date('2026-06-01T00:00:00Z'));
+    expect(out).toEqual({ id: 'draft1', requireApproval: false });
+  });
+
   it('falls back to writing from scratch when there are no flow steps', async () => {
     prisma.debtor.findFirst.mockResolvedValue({
       id: 'd1', clientId: 'c1', name: 'Acme', email: 'ar@acme.example',
@@ -69,7 +91,7 @@ describe('DraftingService', () => {
     prisma.outreachDraft.create.mockResolvedValue({ id: 'draft1' });
 
     const out = await svc.draftForDebtor('c1', 'd1');
-    expect(out).toEqual({ id: 'draft1' });
+    expect(out).toEqual({ id: 'draft1', requireApproval: true });
 
     const arg = prisma.outreachDraft.create.mock.calls[0][0];
     expect(arg.data.status).toBe('pending');

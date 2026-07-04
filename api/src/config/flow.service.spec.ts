@@ -64,8 +64,8 @@ describe('FlowService', () => {
         id: 'flow-client',
         clientId: 'c1',
         steps: [
-          { id: 's2', offsetDays: 14, order: 2, template: { id: 't2', name: 'Second' } },
-          { id: 's1', offsetDays: -7, order: 1, template: { id: 't1', name: 'First' } },
+          { id: 's2', offsetDays: 14, order: 2, requireApproval: true, template: { id: 't2', name: 'Second' } },
+          { id: 's1', offsetDays: -7, order: 1, requireApproval: false, template: { id: 't1', name: 'First' } },
         ],
       });
 
@@ -79,8 +79,8 @@ describe('FlowService', () => {
         flowId: 'flow-client',
         isOverride: true,
         steps: [
-          { id: 's1', offsetDays: -7, order: 1, templateId: 't1', templateName: 'First' },
-          { id: 's2', offsetDays: 14, order: 2, templateId: 't2', templateName: 'Second' },
+          { id: 's1', offsetDays: -7, order: 1, templateId: 't1', templateName: 'First', requireApproval: false },
+          { id: 's2', offsetDays: 14, order: 2, templateId: 't2', templateName: 'Second', requireApproval: true },
         ],
       });
     });
@@ -90,7 +90,7 @@ describe('FlowService', () => {
       prisma.reminderFlow.findFirst.mockResolvedValueOnce({
         id: 'flow-global',
         clientId: null,
-        steps: [{ id: 's1', offsetDays: 1, order: 1, template: { id: 't1', name: 'Global' } }],
+        steps: [{ id: 's1', offsetDays: 1, order: 1, requireApproval: false, template: { id: 't1', name: 'Global' } }],
       });
 
       const result = await svc.getEffective('c1', 'client');
@@ -98,7 +98,7 @@ describe('FlowService', () => {
       expect(result).toEqual({
         flowId: 'flow-global',
         isOverride: false,
-        steps: [{ id: 's1', offsetDays: 1, order: 1, templateId: 't1', templateName: 'Global' }],
+        steps: [{ id: 's1', offsetDays: 1, order: 1, templateId: 't1', templateName: 'Global', requireApproval: false }],
       });
     });
 
@@ -106,7 +106,7 @@ describe('FlowService', () => {
       prisma.reminderFlow.findFirst.mockResolvedValueOnce({
         id: 'flow-global',
         clientId: null,
-        steps: [{ id: 's1', offsetDays: 1, order: 1, template: { id: 't1', name: 'Global' } }],
+        steps: [{ id: 's1', offsetDays: 1, order: 1, requireApproval: true, template: { id: 't1', name: 'Global' } }],
       });
 
       const result = await svc.getEffective('c1', 'global');
@@ -118,7 +118,7 @@ describe('FlowService', () => {
       expect(result).toEqual({
         flowId: 'flow-global',
         isOverride: false,
-        steps: [{ id: 's1', offsetDays: 1, order: 1, templateId: 't1', templateName: 'Global' }],
+        steps: [{ id: 's1', offsetDays: 1, order: 1, templateId: 't1', templateName: 'Global', requireApproval: true }],
       });
     });
   });
@@ -130,8 +130,8 @@ describe('FlowService', () => {
         id: 'flow-global',
         clientId: null,
         steps: [
-          { id: 's1', offsetDays: -7, order: 1, templateId: 't1', flowId: 'flow-global' },
-          { id: 's2', offsetDays: 14, order: 2, templateId: 't2', flowId: 'flow-global' },
+          { id: 's1', offsetDays: -7, order: 1, templateId: 't1', flowId: 'flow-global', requireApproval: false },
+          { id: 's2', offsetDays: 14, order: 2, templateId: 't2', flowId: 'flow-global', requireApproval: true },
         ],
       });
       prisma.reminderFlow.create.mockResolvedValue({ id: 'flow-client', clientId: 'c1' });
@@ -142,8 +142,8 @@ describe('FlowService', () => {
       expect(prisma.reminderFlow.create).toHaveBeenCalledWith({ data: { clientId: 'c1' } });
       expect(prisma.reminderStep.createMany).toHaveBeenCalledWith({
         data: [
-          { flowId: 'flow-client', offsetDays: -7, templateId: 't1', order: 1 },
-          { flowId: 'flow-client', offsetDays: 14, templateId: 't2', order: 2 },
+          { flowId: 'flow-client', offsetDays: -7, templateId: 't1', order: 1, requireApproval: false },
+          { flowId: 'flow-client', offsetDays: 14, templateId: 't2', order: 2, requireApproval: true },
         ],
       });
     });
@@ -206,8 +206,36 @@ describe('FlowService', () => {
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(prisma.reminderStep.deleteMany).toHaveBeenCalledWith({ where: { flowId: 'flow-client' } });
       expect(prisma.reminderStep.createMany).toHaveBeenCalledWith({
-        data: [{ flowId: 'flow-client', offsetDays: 1, templateId: 't1', order: 1 }],
+        data: [{ flowId: 'flow-client', offsetDays: 1, templateId: 't1', order: 1, requireApproval: true }],
       });
+    });
+
+    it('persists requireApproval when provided and defaults to true when omitted', async () => {
+      prisma.reminderFlow.findUnique.mockResolvedValueOnce({ id: 'flow-client', clientId: 'c1' });
+      emailTemplate.findMany.mockResolvedValueOnce([{ id: 't1' }]);
+
+      await svc.replaceSteps('c1', 'client', [
+        { offsetDays: 1, templateId: 't1', order: 1, requireApproval: false },
+        { offsetDays: 14, templateId: 't1', order: 2 },
+      ]);
+
+      expect(prisma.reminderStep.createMany).toHaveBeenCalledWith({
+        data: [
+          { flowId: 'flow-client', offsetDays: 1, templateId: 't1', order: 1, requireApproval: false },
+          { flowId: 'flow-client', offsetDays: 14, templateId: 't1', order: 2, requireApproval: true },
+        ],
+      });
+    });
+
+    it('throws BadRequestException when requireApproval is not a boolean', async () => {
+      await expect(
+        svc.replaceSteps('c1', 'client', [
+          { offsetDays: 1, templateId: 't1', order: 1, requireApproval: 'yes' as never },
+        ]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(emailTemplate.findMany).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('creates the global flow row when missing for scope=global', async () => {

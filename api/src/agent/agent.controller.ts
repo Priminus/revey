@@ -3,7 +3,6 @@ import { ClientId } from '../tenancy/client-id.decorator';
 import { ScoringService, ScoreResult } from './scoring.service';
 import { DraftingService } from './drafting.service';
 import { ApprovalsService, DraftRow } from './approvals.service';
-import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('agent')
 export class AgentController {
@@ -11,7 +10,6 @@ export class AgentController {
     private readonly scoring: ScoringService,
     private readonly drafting: DraftingService,
     private readonly approvals: ApprovalsService,
-    private readonly prisma: PrismaService,
   ) {}
 
   @Post('score')
@@ -48,14 +46,9 @@ export class AgentController {
     | { draftId: string; autoSent: false }
     | { draftId: string; autoSent: true; result: { status: 'sent' | 'failed'; error?: string } }
   > {
-    const { id: draftId } = await this.drafting.draftForDebtor(clientId, id);
+    const { id: draftId, requireApproval } = await this.drafting.draftForDebtor(clientId, id);
 
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-      select: { autoSend: true },
-    });
-
-    if (client?.autoSend) {
+    if (!requireApproval) {
       const result = await this.approvals.approveAndSend(clientId, draftId);
       return { draftId, autoSent: true, result };
     }

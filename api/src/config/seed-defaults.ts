@@ -5,12 +5,14 @@ interface DefaultTemplate {
   subject: string;
   body: string;
   offsetDays: number;
+  requireApproval: boolean;
 }
 
 const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     name: 'Pre-due nudge',
     offsetDays: -7,
+    requireApproval: false,
     subject: 'Invoice reminder for {{debtor_name}}',
     body:
       'Hi {{debtor_name}},\n\n' +
@@ -22,6 +24,7 @@ const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     name: 'Due reminder',
     offsetDays: 1,
+    requireApproval: false,
     subject: 'Invoice now due for {{debtor_name}}',
     body:
       'Hi {{debtor_name}},\n\n' +
@@ -33,6 +36,7 @@ const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     name: 'Firm follow-up',
     offsetDays: 14,
+    requireApproval: true,
     subject: 'Overdue invoice for {{debtor_name}}',
     body:
       'Hi {{debtor_name}},\n\n' +
@@ -44,6 +48,7 @@ const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   {
     name: 'Final notice',
     offsetDays: 30,
+    requireApproval: true,
     subject: 'Final notice: overdue balance for {{debtor_name}}',
     body:
       'Hi {{debtor_name}},\n\n' +
@@ -83,6 +88,7 @@ export async function ensureDefaults(prisma: PrismaService): Promise<void> {
             offsetDays: def.offsetDays,
             templateId: template.id,
             order: i,
+            requireApproval: def.requireApproval,
           },
         });
       }

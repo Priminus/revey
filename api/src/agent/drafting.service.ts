@@ -33,7 +33,7 @@ export class DraftingService {
     clientId: string,
     debtorId: string,
     asOf: Date = new Date(),
-  ): Promise<{ id: string }> {
+  ): Promise<{ id: string; requireApproval: boolean }> {
     const debtor = await this.prisma.debtor.findFirst({
       where: { id: debtorId, clientId },
     });
@@ -109,7 +109,7 @@ export class DraftingService {
           },
           select: { id: true },
         });
-        return { id: created.id };
+        return { id: created.id, requireApproval: step.requireApproval };
       }
     }
 
@@ -145,6 +145,6 @@ ${lines || '(none)'}`,
       },
       select: { id: true },
     });
-    return { id: created.id };
+    return { id: created.id, requireApproval: true };
   }
 }
