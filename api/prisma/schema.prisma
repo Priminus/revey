@@ -12,6 +12,7 @@ model Client {
   id          String   @id @default(uuid())
   name        String
   clerkUserId String   @unique @map("clerk_user_id")
+  autoSend    Boolean  @default(false) @map("auto_send")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   debtors    Debtor[]

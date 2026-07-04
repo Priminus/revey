@@ -3,6 +3,7 @@ import { ClientId } from '../tenancy/client-id.decorator';
 import { ScoringService, ScoreResult } from './scoring.service';
 import { DraftingService } from './drafting.service';
 import { ApprovalsService, DraftRow } from './approvals.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('agent')
 export class AgentController {
@@ -10,6 +11,7 @@ export class AgentController {
     private readonly scoring: ScoringService,
     private readonly drafting: DraftingService,
     private readonly approvals: ApprovalsService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post('score')
@@ -31,6 +33,29 @@ export class AgentController {
     @Param('id') id: string,
   ): Promise<{ id: string }> {
     return this.drafting.draftForDebtor(clientId, id);
+  }
+
+  @Post('debtors/:id/run')
+  async run(
+    @ClientId() clientId: string,
+    @Param('id') id: string,
+  ): Promise<
+    | { draftId: string; autoSent: false }
+    | { draftId: string; autoSent: true; result: { status: 'sent' | 'failed'; error?: string } }
+  > {
+    const { id: draftId } = await this.drafting.draftForDebtor(clientId, id);
+
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      select: { autoSend: true },
+    });
+
+    if (client?.autoSend) {
+      const result = await this.approvals.approveAndSend(clientId, draftId);
+      return { draftId, autoSent: true, result };
+    }
+
+    return { draftId, autoSent: false };
   }
 
   @Get('drafts')

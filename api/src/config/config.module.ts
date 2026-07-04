@@ -3,12 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigController } from './config.controller';
 import { TemplateService } from './template.service';
 import { FlowService } from './flow.service';
+import { SettingsService } from './settings.service';
 import { ensureDefaults } from './seed-defaults';
 
 @Module({
   controllers: [ConfigController],
-  providers: [TemplateService, FlowService],
-  exports: [TemplateService, FlowService],
+  providers: [TemplateService, FlowService, SettingsService],
+  exports: [TemplateService, FlowService, SettingsService],
 })
 export class ConfigModule implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}

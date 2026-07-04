@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post,
 import { ClientId } from '../tenancy/client-id.decorator';
 import { TemplateService, TemplateScope } from './template.service';
 import { FlowService, FlowScope, StepView } from './flow.service';
+import { SettingsService } from './settings.service';
 
 function parseScope(raw: unknown): FlowScope {
   const value = raw ?? 'client';
@@ -20,6 +21,7 @@ export class ConfigController {
   constructor(
     private readonly templates: TemplateService,
     private readonly flow: FlowService,
+    private readonly settings: SettingsService,
   ) {}
 
   @Get('templates')
@@ -82,5 +84,18 @@ export class ConfigController {
   @Delete('flow')
   reset(@ClientId() clientId: string): Promise<void> {
     return this.flow.reset(clientId);
+  }
+
+  @Get('settings')
+  getSettings(@ClientId() clientId: string): Promise<{ autoSend: boolean }> {
+    return this.settings.getSettings(clientId);
+  }
+
+  @Patch('settings')
+  updateSettings(
+    @ClientId() clientId: string,
+    @Body() dto: { autoSend?: unknown },
+  ): Promise<{ autoSend: boolean }> {
+    return this.settings.updateSettings(clientId, dto);
   }
 }

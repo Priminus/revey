@@ -1,0 +1,1 @@
+ALTER TABLE "clients" ADD COLUMN "auto_send" BOOLEAN NOT NULL DEFAULT false;
