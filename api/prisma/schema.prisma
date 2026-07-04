@@ -17,8 +17,22 @@ model Client {
   updatedAt  DateTime @updatedAt @map("updated_at")
   debtors    Debtor[]
   xeroConnection XeroConnection?
+  memberships ClientMembership[]
 
   @@map("clients")
+}
+
+model ClientMembership {
+  id          String   @id @default(uuid())
+  clerkUserId String   @map("clerk_user_id")
+  clientId    String   @map("client_id")
+  role        String   @default("member")
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([clerkUserId, clientId])
+  @@index([clerkUserId])
+  @@map("client_memberships")
 }
 
 model Debtor {
