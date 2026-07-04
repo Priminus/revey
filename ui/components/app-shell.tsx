@@ -11,12 +11,10 @@ interface NavItem {
   href: string;
 }
 
-// Client-scoped — dashboard, debtors, approvals, and this client's workflow.
-// "Debtors" points at "/" (the dashboard table) since there is no standalone
-// debtors index route yet.
+// Client-scoped — dashboard (which shows the debtors table), approvals,
+// connections, and this client's workflow.
 const WORKSPACE_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/' },
-  { label: 'Debtors', href: '/' },
   { label: 'Approvals', href: '/approvals' },
   { label: 'Connections', href: '/connections' },
   { label: 'Workflow', href: '/workflow' },

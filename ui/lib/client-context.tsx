@@ -5,6 +5,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactElement,
   type ReactNode,
@@ -39,6 +40,18 @@ export function ClientProvider({ children }: { children: ReactNode }): ReactElem
   const { data: clients } = useClients();
   const [activeClientId, setActiveClientIdState] = useState<string | null>(readStoredClientId);
 
+  // Keep track of the last client id we've synced onto the `apiFetch`
+  // module-level header, and sync during render (not in an effect) so the
+  // header is correct before children mount and fire their first queries.
+  // This closes the mount-time race where a persisted non-default client
+  // would otherwise be applied only after first paint, letting the initial
+  // fetch go out unscoped.
+  const lastSyncedRef = useRef<string | null | undefined>(undefined);
+  if (lastSyncedRef.current !== activeClientId) {
+    setActiveClientHeader(activeClientId);
+    lastSyncedRef.current = activeClientId;
+  }
+
   // Default to the first client returned once loaded, if nothing was
   // stored/selected yet.
   useEffect(() => {
@@ -46,10 +59,18 @@ export function ClientProvider({ children }: { children: ReactNode }): ReactElem
     setActiveClientIdState(clients[0].id);
   }, [clients, activeClientId]);
 
+  // Persist to localStorage and invalidate React Query caches whenever the
+  // active client actually changes. Skipped on the very first run since the
+  // render-body sync above already applied the header for the initial
+  // value — invalidating here too would trigger a redundant double-fetch.
+  const didMountRef = useRef(false);
   useEffect(() => {
-    setActiveClientHeader(activeClientId);
     if (activeClientId && typeof window !== 'undefined') {
       window.localStorage.setItem(STORAGE_KEY, activeClientId);
+    }
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
     }
     void queryClient.invalidateQueries();
   }, [activeClientId, queryClient]);
