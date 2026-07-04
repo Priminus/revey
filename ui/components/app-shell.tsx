@@ -15,6 +15,7 @@ interface NavItem {
 // connections, and this client's workflow.
 const WORKSPACE_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/' },
+  { label: 'Vendors', href: '/vendors' },
   { label: 'Approvals', href: '/approvals' },
   { label: 'Connections', href: '/connections' },
   { label: 'Workflow', href: '/workflow' },

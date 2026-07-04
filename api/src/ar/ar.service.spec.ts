@@ -85,6 +85,79 @@ describe('ArService', () => {
     expect(rows[1].scoreRationale).toBeNull();
   });
 
+  it('lists ALL vendors (no open-invoice filter), riskiest first with nulls last', async () => {
+    const prisma = {
+      debtor: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'd1',
+            name: 'Unscored NoBalance',
+            email: null,
+            scoreValue: null,
+            scoreBand: null,
+            recommendedAction: null,
+            scoreRationale: null,
+            invoices: [],
+          },
+          {
+            id: 'd2',
+            name: 'Risky',
+            email: 'r@x.co',
+            scoreValue: 20,
+            scoreBand: 'at_risk',
+            recommendedAction: 'final_notice',
+            scoreRationale: 'x',
+            invoices: [inv({ amountDueCents: 5000, dueDate: new Date('2026-03-01T00:00:00Z') })],
+          },
+          {
+            id: 'd3',
+            name: 'Healthy',
+            email: 'h@x.co',
+            scoreValue: 80,
+            scoreBand: 'likely',
+            recommendedAction: 'gentle_reminder',
+            scoreRationale: 'x',
+            invoices: [],
+          },
+        ]),
+      },
+      invoice: { findMany: jest.fn() },
+    };
+    const svc = new ArService(prisma as never, { sync: jest.fn() } as never);
+    const rows = await svc.listVendors('c1', asOf);
+    // Riskiest (lowest score) first; unscored (null) last.
+    expect(rows.map((r) => r.name)).toEqual(['Risky', 'Healthy', 'Unscored NoBalance']);
+    // Vendor with no open invoices still appears, with zeroed money fields.
+    expect(rows[2].outstandingCents).toBe(0);
+    expect(rows[2].openInvoiceCount).toBe(0);
+    expect(rows[2].worstOverdueDays).toBe(0);
+    expect(rows[0].outstandingCents).toBe(5000);
+    expect(rows[0].worstOverdueDays).toBeGreaterThan(90);
+  });
+
+  it('tie-breaks equal scores by outstanding desc', async () => {
+    const prisma = {
+      debtor: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'd1', name: 'Low', email: null, scoreValue: 50, scoreBand: 'uncertain',
+            recommendedAction: null, scoreRationale: null,
+            invoices: [inv({ amountDueCents: 1000 })],
+          },
+          {
+            id: 'd2', name: 'High', email: null, scoreValue: 50, scoreBand: 'uncertain',
+            recommendedAction: null, scoreRationale: null,
+            invoices: [inv({ amountDueCents: 9000 })],
+          },
+        ]),
+      },
+      invoice: { findMany: jest.fn() },
+    };
+    const svc = new ArService(prisma as never, { sync: jest.fn() } as never);
+    const rows = await svc.listVendors('c1', asOf);
+    expect(rows.map((r) => r.name)).toEqual(['High', 'Low']);
+  });
+
   it('includes score fields and interaction history on debtor detail', async () => {
     const prisma = {
       debtor: {

@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Post } from '@nestjs/common';
 import { ClientId } from '../tenancy/client-id.decorator';
-import { ArService, ArSummary, DebtorDetail, DebtorRow } from './ar.service';
+import { ArService, ArSummary, DebtorDetail, DebtorRow, VendorRow } from './ar.service';
 
 @Controller('ar')
 export class ArController {
@@ -19,6 +19,11 @@ export class ArController {
   @Get('debtors')
   debtors(@ClientId() clientId: string): Promise<DebtorRow[]> {
     return this.ar.listDebtors(clientId, new Date());
+  }
+
+  @Get('vendors')
+  vendors(@ClientId() clientId: string): Promise<VendorRow[]> {
+    return this.ar.listVendors(clientId, new Date());
   }
 
   @Get('debtors/:id')

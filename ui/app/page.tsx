@@ -13,7 +13,6 @@ import {
   useArSummary,
   useDebtors,
   useSyncAr,
-  useScoreAll,
   formatCents,
   scoreBandTone,
 } from '@/lib/api/ar';
@@ -36,25 +35,6 @@ function SyncButton(): ReactElement {
       {data && (
         <p className="tnum text-xs text-paid">
           Synced {data.debtors.toLocaleString('en-US')} debtors · {data.invoices.toLocaleString('en-US')} invoices
-        </p>
-      )}
-      {error && <p className="text-xs text-danger">{(error as Error).message}</p>}
-    </div>
-  );
-}
-
-function ScoreAllButton(): ReactElement {
-  const { mutate, isPending, data, error } = useScoreAll();
-
-  return (
-    <div className="flex flex-col items-end gap-1.5">
-      <Button variant="secondary" onClick={() => mutate()} disabled={isPending}>
-        {isPending ? 'Scoring…' : 'Score all'}
-      </Button>
-      {data && (
-        <p className={`tnum text-xs ${data.failed > 0 ? 'text-danger' : 'text-paid'}`}>
-          Scored {data.scored.toLocaleString('en-US')} debtors
-          {data.failed > 0 ? ` (${data.failed.toLocaleString('en-US')} failed)` : ''}
         </p>
       )}
       {error && <p className="text-xs text-danger">{(error as Error).message}</p>}
@@ -141,7 +121,6 @@ function Dashboard(): ReactElement {
           </p>
         </div>
         <div className="flex items-start gap-3">
-          <ScoreAllButton />
           <SyncButton />
         </div>
       </div>
@@ -171,7 +150,7 @@ function Dashboard(): ReactElement {
 
       <Card>
         <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
-          Debtors
+          Owing now
         </h2>
         <DebtorsTable />
       </Card>

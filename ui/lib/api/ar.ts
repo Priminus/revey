@@ -4,9 +4,9 @@ import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from './client';
 import { AGING_BUCKETS, formatCents, scoreBandTone } from './ar-format';
-import type { AgingBucket, DraftRow, ScoreBand } from './ar-format';
+import type { AgingBucket, DraftRow, ScoreBand, VendorRow } from './ar-format';
 
-export type { AgingBucket, DraftRow, ScoreBand };
+export type { AgingBucket, DraftRow, ScoreBand, VendorRow };
 export { AGING_BUCKETS, formatCents, scoreBandTone };
 
 export interface ArSummary {
@@ -70,6 +70,26 @@ export function useDebtors() {
   return useQuery({
     queryKey: ['ar', 'debtors'],
     queryFn: async () => apiFetch<DebtorRow[]>('/ar/debtors', await getToken()),
+  });
+}
+
+export function useVendors() {
+  const { getToken } = useAuth();
+  return useQuery({
+    queryKey: ['ar', 'vendors'],
+    queryFn: async () => apiFetch<VendorRow[]>('/ar/vendors', await getToken()),
+  });
+}
+
+export function useScoreAllVendors() {
+  const { getToken } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      apiFetch<{ scored: number; failed: number }>('/agent/score-all', await getToken(), {
+        method: 'POST',
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ar'] }),
   });
 }
 

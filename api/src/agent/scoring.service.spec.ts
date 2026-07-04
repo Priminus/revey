@@ -101,5 +101,44 @@ describe('ScoringService', () => {
       expect(spy).toHaveBeenCalledTimes(2);
       spy.mockRestore();
     });
+
+    it('scores only debtors with open invoices', async () => {
+      prisma.debtor.findMany.mockResolvedValue([{ id: 'd1' }]);
+      const spy = jest.spyOn(svc, 'scoreDebtor').mockResolvedValue({
+        scoreValue: 60, scoreBand: 'uncertain', recommendedAction: 'firm_followup', rationale: 'x',
+      });
+      await svc.scoreAllOpen('c1');
+      expect(prisma.debtor.findMany).toHaveBeenCalledWith({
+        where: { clientId: 'c1', invoices: { some: { amountDueCents: { gt: 0 } } } },
+        select: { id: true },
+      });
+      spy.mockRestore();
+    });
+  });
+
+  describe('scoreAll', () => {
+    it('scores EVERY debtor for the client and reports scored/failed counts', async () => {
+      prisma.debtor.findMany.mockResolvedValue([{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }]);
+
+      const spy = jest.spyOn(svc, 'scoreDebtor');
+      spy.mockResolvedValueOnce({
+        scoreValue: 60, scoreBand: 'uncertain', recommendedAction: 'firm_followup', rationale: 'x',
+      });
+      spy.mockRejectedValueOnce(new Error('llm timeout'));
+      spy.mockResolvedValueOnce({
+        scoreValue: 80, scoreBand: 'likely', recommendedAction: 'gentle_reminder', rationale: 'x',
+      });
+
+      const result = await svc.scoreAll('c1');
+
+      expect(result).toEqual({ scored: 2, failed: 1 });
+      // No open-invoice filter — every debtor is fetched.
+      expect(prisma.debtor.findMany).toHaveBeenCalledWith({
+        where: { clientId: 'c1' },
+        select: { id: true },
+      });
+      expect(spy).toHaveBeenCalledTimes(3);
+      spy.mockRestore();
+    });
   });
 });

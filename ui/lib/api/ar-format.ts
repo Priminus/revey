@@ -27,6 +27,18 @@ export function scoreBandTone(band: string | null): BadgeTone {
   }
 }
 
+export interface VendorRow {
+  id: string;
+  name: string;
+  email: string | null;
+  scoreValue: number | null;
+  scoreBand: ScoreBand | null;
+  recommendedAction: string | null;
+  outstandingCents: number;
+  openInvoiceCount: number;
+  worstOverdueDays: number;
+}
+
 export interface DraftRow {
   id: string;
   debtorId: string;

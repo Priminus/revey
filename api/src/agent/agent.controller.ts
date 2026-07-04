@@ -19,6 +19,11 @@ export class AgentController {
     return this.scoring.scoreAllOpen(clientId);
   }
 
+  @Post('score-all')
+  scoreAllVendors(@ClientId() clientId: string): Promise<{ scored: number; failed: number }> {
+    return this.scoring.scoreAll(clientId);
+  }
+
   @Post('debtors/:id/score')
   scoreDebtor(
     @ClientId() clientId: string,

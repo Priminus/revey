@@ -108,6 +108,22 @@ ${history}`;
       where: { clientId, invoices: { some: { amountDueCents: { gt: 0 } } } },
       select: { id: true },
     });
+    return this.scoreDebtors(clientId, debtors);
+  }
+
+  /** Score EVERY debtor for the client — the first-class Vendors scoring action. */
+  async scoreAll(clientId: string): Promise<{ scored: number; failed: number }> {
+    const debtors = await this.prisma.debtor.findMany({
+      where: { clientId },
+      select: { id: true },
+    });
+    return this.scoreDebtors(clientId, debtors);
+  }
+
+  private async scoreDebtors(
+    clientId: string,
+    debtors: { id: string }[],
+  ): Promise<{ scored: number; failed: number }> {
     let scored = 0;
     let failed = 0;
     // TODO: bounded concurrency / background job

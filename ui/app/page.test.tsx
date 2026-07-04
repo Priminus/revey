@@ -26,7 +26,6 @@ jest.mock('../lib/api/ar', () => {
     useArSummary: () => ({ data: undefined, isLoading: false }),
     useDebtors: () => ({ data: [], isLoading: false }),
     useSyncAr: () => ({ mutate: jest.fn(), isPending: false, data: undefined, error: undefined }),
-    useScoreAll: () => ({ mutate: jest.fn(), isPending: false, data: undefined, error: undefined }),
   };
 });
 

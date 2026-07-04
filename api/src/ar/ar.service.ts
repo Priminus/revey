@@ -29,6 +29,18 @@ export interface DebtorRow {
   scoreRationale: string | null;
 }
 
+export interface VendorRow {
+  id: string;
+  name: string;
+  email: string | null;
+  scoreValue: number | null;
+  scoreBand: string | null;
+  recommendedAction: string | null;
+  outstandingCents: number;
+  openInvoiceCount: number;
+  worstOverdueDays: number;
+}
+
 export interface InvoiceRow {
   id: string;
   invoiceNumber: string;
@@ -120,6 +132,42 @@ export class ArService {
       })
       .filter((r) => r.openInvoiceCount > 0)
       .sort((a, b) => b.outstandingCents - a.outstandingCents);
+  }
+
+  async listVendors(clientId: string, asOf: Date): Promise<VendorRow[]> {
+    const debtors = await this.prisma.debtor.findMany({
+      where: { clientId },
+      include: { invoices: { where: { amountDueCents: { gt: 0 } } } },
+    });
+    return debtors
+      .map((d) => {
+        const open = d.invoices.filter((i) => i.amountDueCents > 0);
+        const outstandingCents = open.reduce((s, i) => s + i.amountDueCents, 0);
+        const worstOverdueDays = open.reduce(
+          (m, i) => Math.max(m, overdueDays(i.dueDate, asOf)),
+          Number.NEGATIVE_INFINITY,
+        );
+        return {
+          id: d.id,
+          name: d.name,
+          email: d.email,
+          scoreValue: d.scoreValue,
+          scoreBand: d.scoreBand,
+          recommendedAction: d.recommendedAction,
+          outstandingCents,
+          openInvoiceCount: open.length,
+          worstOverdueDays: open.length ? worstOverdueDays : 0,
+        };
+      })
+      .sort((a, b) => {
+        // Riskiest first: lowest score, nulls last; tie-break by outstanding desc.
+        if (a.scoreValue !== b.scoreValue) {
+          if (a.scoreValue === null) return 1;
+          if (b.scoreValue === null) return -1;
+          return a.scoreValue - b.scoreValue;
+        }
+        return b.outstandingCents - a.outstandingCents;
+      });
   }
 
   async getDebtor(
