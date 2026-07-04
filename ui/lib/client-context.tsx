@@ -52,11 +52,15 @@ export function ClientProvider({ children }: { children: ReactNode }): ReactElem
     lastSyncedRef.current = activeClientId;
   }
 
-  // Default to the first client returned once loaded, if nothing was
-  // stored/selected yet.
+  // Once clients load: pick the first client if none is selected, OR reset to
+  // the first client if the stored id no longer exists (e.g. a client was
+  // removed) — otherwise the switcher points at a dead id and shows nothing.
   useEffect(() => {
-    if (activeClientId || !clients || clients.length === 0) return;
-    setActiveClientIdState(clients[0].id);
+    if (!clients || clients.length === 0) return;
+    const stillValid = clients.some((c) => c.id === activeClientId);
+    if (!activeClientId || !stillValid) {
+      setActiveClientIdState(clients[0].id);
+    }
   }, [clients, activeClientId]);
 
   // Persist to localStorage and invalidate React Query caches whenever the
